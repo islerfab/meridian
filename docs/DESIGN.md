@@ -130,7 +130,7 @@ type CalendarAdapter interface {
 
 **Health**: liveness = process up; readiness = config parsed + CEL compiled + adapters authenticated once. Broken auth at startup = never ready = visible red in ArgoCD.
 
-**Validation-week measurability**: steady-state signal is per-rule *converged cycles* (zero ops). Op logs provide the day-by-day record to diff against Reclaim's behavior on the same calendars — makes the acceptance criterion measurable, not vibes.
+**Validation measurability**: steady-state signal is per-rule *converged cycles* (zero ops); op logs provide the day-by-day audit record. Validation follows the staged plan in [TESTING.md](TESTING.md) — sandbox E2E on scratch calendars, then in-cluster soak with real sources + scratch destinations, then **hard cutover** (revised 2026-08-02: no Reclaim-parallel run — two engines on the same calendars interfere; rollback = bulk-delete-by-marker + re-enable Reclaim).
 
 ## Research references
 
