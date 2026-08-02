@@ -33,11 +33,6 @@ Design for the OSS use case (no homefab-specific assumptions in code/chart), but
 
 Same discipline as homelab: never generate passwords/tokens into chat, never decrypt secrets files into context. OAuth refresh tokens land in SOPS-encrypted Secrets in homelab-argocd, not in this repo.
 
-## Beads
-
-- `bd ready` / `bd show <id>` / `bd update <id> --claim` / `bd close <id>`; decisions via `bd create --type decision`.
-- Use bd for ALL task tracking in this repo (no TodoWrite/markdown TODOs).
-
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:6cd5cc61 -->
 ## Beads Issue Tracker
