@@ -18,11 +18,17 @@ K8s-native declarative calendar sync (Reclaim.ai replacement, Phase 1). Go, sing
 - **Per-rule failure isolation**; the next cycle is the retry. The five hardening guards (zombie-resurrection, mass-delete, hash change-detection, windowed orphan-GC, tombstone tolerance) are correctness requirements, not nice-to-haves — each needs tests.
 - **Observability = Prometheus metrics + structured slog JSON op logs.** Guard triggers must be loud (metrics).
 
+## Working style (current phase)
+
+Development is **very much interactive** right now. Even in auto/autonomous mode, check in with Fabio regularly whenever there is a choice to be made — library selection, structural decisions, trade-offs — **even if you are ~80% sure of the outcome**. Present the options with your recommendation and let him decide. Batch check-ins sensibly (don't ping per trivial detail), but err on the side of asking.
+
 ## Environment
 
 - ARM64 (aarch64) WSL2. Go 1.26.5 at `~/.local/go/bin` (on PATH via `.bashrc`; in non-login shells use the full path).
+- Build tooling: Taskfile.yml, run via `go tool task <target>` (Task is a go.mod tool dep) — `go tool task ci` = vet+lint+test+build. golangci-lint + goreleaser binaries at `~/.local/bin`. CLI framework: urfave/cli v3, isolated in `internal/cli`.
+- Releases: conventional commits + semver (0.x). `go tool task release` tags via svu (go.mod tool dep) and pushes; `.github/workflows/release.yml` runs GoReleaser on `v*` tags — binaries + GH release + changelog (built-in conventional-commit groups) + OCI image via integrated ko (no Dockerfile). Version info: GoReleaser ldflags into `internal/cli` vars, `debug.ReadBuildInfo` fallback for local builds. Local pipeline check: `goreleaser release --snapshot --clean --skip=ko` (no docker in WSL2).
 - Module path: `github.com/islerfab/meridian`.
-- Target image: distroless static, linux/arm64.
+- Target image: ko-built on `cgr.dev/chainguard/static` (distroless-style, nonroot), linux/arm64 + amd64, pushed to `ghcr.io/islerfab/meridian`.
 - Deploys eventually to the homelab Talos cluster via ArgoCD; Helm chart lives in `deploy/` in this repo.
 
 ## OSS posture (current phase)

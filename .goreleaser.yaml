@@ -1,0 +1,67 @@
+version: 2
+
+project_name: meridian
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: meridian
+    main: ./cmd/meridian
+    binary: meridian
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/islerfab/meridian/internal/cli.version={{.Version}}
+      - -X github.com/islerfab/meridian/internal/cli.commit={{.Commit}}
+      - -X github.com/islerfab/meridian/internal/cli.date={{.Date}}
+    goos:
+      - linux
+    goarch:
+      - arm64
+      - amd64
+
+archives:
+  - formats: [tar.gz]
+
+kos:
+  - build: meridian
+    repositories:
+      - ghcr.io/islerfab/meridian
+    base_image: cgr.dev/chainguard/static
+    platforms:
+      - linux/arm64
+      - linux/amd64
+    tags:
+      - "{{.Version}}"
+      - latest
+    bare: true
+    preserve_import_paths: false
+    creation_time: "{{.CommitTimestamp}}"
+    sbom: spdx
+
+changelog:
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^feat(\(.*\))?!?:'
+      order: 0
+    - title: Bug fixes
+      regexp: '^fix(\(.*\))?!?:'
+      order: 1
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - '^chore\(deps\):'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot-{{ .ShortCommit }}"
+
+release:
+  footer: |
+    **Container image**: `ghcr.io/islerfab/meridian:{{.Version}}` (linux/arm64, linux/amd64)

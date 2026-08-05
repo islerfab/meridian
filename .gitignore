@@ -1,5 +1,5 @@
-meridian
 /meridian
+.task/
 *.test
 coverage.out
 dist/

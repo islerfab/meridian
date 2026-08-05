@@ -1,0 +1,63 @@
+version: '3'
+
+tasks:
+  default:
+    deps: [build]
+
+  build:
+    desc: Build the meridian binary (static, stripped)
+    env:
+      CGO_ENABLED: "0"
+    sources:
+      - '**/*.go'
+      - go.mod
+      - go.sum
+    generates:
+      - meridian
+    cmds:
+      - go build -trimpath -ldflags '-s -w' -o meridian ./cmd/meridian
+
+  test:
+    desc: Run tests with the race detector
+    cmds:
+      - go test -race ./...
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run
+
+  tidy:
+    desc: Tidy go.mod/go.sum
+    cmds:
+      - go mod tidy
+
+  cover:
+    desc: Run tests with coverage report
+    cmds:
+      - go test -race -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -f meridian coverage.out
+
+  ci:
+    desc: Everything CI runs — vet, lint, test, build
+    deps: [vet]
+    cmds:
+      - task: lint
+      - task: test
+      - task: build
+
+  release:
+    desc: Tag the next semver (from conventional commits, via svu) and push the tag — release.yml does the rest
+    cmds:
+      - git tag "$(go tool svu next)"
+      - git push --tags
