@@ -22,6 +22,8 @@ K8s-native declarative calendar sync (Reclaim.ai replacement, Phase 1). Go, sing
 
 Development is **very much interactive** right now. Even in auto/autonomous mode, check in with Fabio regularly whenever there is a choice to be made — library selection, structural decisions, trade-offs — **even if you are ~80% sure of the outcome**. Present the options with your recommendation and let him decide. Batch check-ins sensibly (don't ping per trivial detail), but err on the side of asking.
 
+**AskUserQuestion UI quirk:** text written in the same turn before an AskUserQuestion call is NOT visible to Fabio — he sees only the widget. All context needed to decide must either be inside the question text / option previews, or delivered in a *previous* turn that ended as plain text.
+
 ## Environment
 
 - ARM64 (aarch64) WSL2. Go 1.26.5 at `~/.local/go/bin` (on PATH via `.bashrc`; in non-login shells use the full path).
