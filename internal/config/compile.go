@@ -342,6 +342,76 @@ func BuildAdapters(ctx context.Context, cfg *Config, log *slog.Logger) (map[stri
 	return adapters, nil
 }
 
+// BuildSweepers constructs one AccountSweeper per account (sweep auto-GC,
+// decided 2026-08-08) plus the provider-ID → logical-key mapping the engine
+// needs to recognize configured calendars among discovered ones.
+func BuildSweepers(ctx context.Context, cfg *Config, log *slog.Logger) (map[string]adapter.AccountSweeper, map[string]map[string]string, error) {
+	sweepers := map[string]adapter.AccountSweeper{}
+	keys := map[string]map[string]string{}
+	for _, a := range cfg.Accounts {
+		keys[a.Name] = map[string]string{}
+		switch a.Type {
+		case "caldav":
+			user, err := requireEnv(a.UsernameEnv, a.Name)
+			if err != nil {
+				return nil, nil, err
+			}
+			pass, err := requireEnv(a.PasswordEnv, a.Name)
+			if err != nil {
+				return nil, nil, err
+			}
+			sw, err := caldav.NewAccount(caldav.AccountConfig{
+				Endpoint:    a.Endpoint,
+				Username:    user,
+				Password:    pass,
+				InstanceID:  cfg.Instance,
+				AccountName: a.Name,
+			}, log)
+			if err != nil {
+				return nil, nil, err
+			}
+			sweepers[a.Name] = sw
+			for _, cal := range a.Calendars {
+				keys[a.Name][normalizePath(cal.Path)] = a.Name + "/" + cal.Name
+			}
+		case "google":
+			id, err := requireEnv(a.ClientIDEnv, a.Name)
+			if err != nil {
+				return nil, nil, err
+			}
+			secret, err := requireEnv(a.ClientSecretEnv, a.Name)
+			if err != nil {
+				return nil, nil, err
+			}
+			token, err := requireEnv(a.RefreshTokenEnv, a.Name)
+			if err != nil {
+				return nil, nil, err
+			}
+			sw, err := google.NewAccount(ctx, google.AccountConfig{
+				ClientID:     id,
+				ClientSecret: secret,
+				RefreshToken: token,
+				InstanceID:   cfg.Instance,
+				AccountName:  a.Name,
+			}, log)
+			if err != nil {
+				return nil, nil, err
+			}
+			sweepers[a.Name] = sw
+			for _, cal := range a.Calendars {
+				keys[a.Name][cal.ID] = a.Name + "/" + cal.Name
+			}
+		}
+	}
+	return sweepers, keys, nil
+}
+
+// normalizePath makes configured and discovered CalDAV collection paths
+// comparable (trailing-slash differences).
+func normalizePath(p string) string {
+	return strings.TrimSuffix(p, "/")
+}
+
 // BuildNotifier resolves the notification channel (Nop when unconfigured).
 func BuildNotifier(cfg *Config) (notify.Notifier, error) {
 	envName := cfg.Notifications.DiscordWebhookURLEnv

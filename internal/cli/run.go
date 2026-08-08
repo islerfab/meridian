@@ -90,10 +90,16 @@ func buildEngine(ctx context.Context, path string, log *slog.Logger) (*sync.Engi
 	if err != nil {
 		return nil, 0, err
 	}
+	sweepers, calendarKeys, err := config.BuildSweepers(ctx, cfg, log)
+	if err != nil {
+		return nil, 0, err
+	}
 	engine, err := sync.New(sync.Config{
 		InstanceID:               cfg.Instance,
 		Rules:                    rules,
 		Adapters:                 adapters,
+		Sweepers:                 sweepers,
+		CalendarKeys:             calendarKeys,
 		MassDeleteNotifyFraction: *cfg.Notifications.MassDeleteFraction,
 		Notifier:                 notifier,
 		Logger:                   log,

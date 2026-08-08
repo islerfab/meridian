@@ -20,6 +20,13 @@ import (
 // newWipeCmd deletes this instance's shadows on demand (mer-uks: explicit
 // operator intent replaces automatic rule-removal GC). Only own-instance
 // markers are ever touched; listing is unbounded (out-of-window strays too).
+func instanceFlag() *cli.StringFlag {
+	return &cli.StringFlag{
+		Name:  "instance",
+		Usage: "wipe shadows of this instance ID instead of the configured one (post-rename cleanup)",
+	}
+}
+
 func newWipeCmd() *cli.Command {
 	yesFlag := &cli.BoolFlag{Name: "yes", Usage: "skip the confirmation prompt"}
 	return &cli.Command{
@@ -30,7 +37,7 @@ func newWipeCmd() *cli.Command {
 				Name:      "calendar",
 				Usage:     "Delete ALL of this instance's shadows on one calendar",
 				ArgsUsage: "<account/calendar>",
-				Flags:     []cli.Flag{configFlag(), yesFlag},
+				Flags:     []cli.Flag{configFlag(), yesFlag, instanceFlag()},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					if cmd.Args().Len() != 1 {
 						return fmt.Errorf("usage: meridian wipe calendar <account/calendar>")
@@ -42,7 +49,7 @@ func newWipeCmd() *cli.Command {
 				Name:      "rule",
 				Usage:     "Delete one rule's shadows (all calendars, or --calendar)",
 				ArgsUsage: "<rule-id>",
-				Flags: []cli.Flag{configFlag(), yesFlag,
+				Flags: []cli.Flag{configFlag(), yesFlag, instanceFlag(),
 					&cli.StringFlag{Name: "calendar", Usage: "narrow to one account/calendar"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -69,6 +76,13 @@ func runWipe(ctx context.Context, cmd *cli.Command, calendars []string, rule str
 	cfg, err := config.Load(cmd.String("config"))
 	if err != nil {
 		return err
+	}
+	if override := cmd.String("instance"); override != "" {
+		// Post-rename cleanup: old shadows carry the old instance ID and
+		// are invisible to the renamed instance without this. Adapters
+		// scope their listings by instance, so the override must apply
+		// before they are built.
+		cfg.Instance = override
 	}
 	adapters, err := config.BuildAdapters(ctx, cfg, log)
 	if err != nil {

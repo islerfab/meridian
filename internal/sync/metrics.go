@@ -14,7 +14,6 @@ type Metrics struct {
 	CycleDuration       prometheus.Histogram
 	LastSuccessfulCycle *prometheus.GaugeVec // rule
 	NotifyFailuresTotal prometheus.Counter
-	StaleShadows        *prometheus.GaugeVec // calendar, rule
 }
 
 // NewMetrics builds and registers the engine collectors.
@@ -49,15 +48,11 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 			Name: "meridian_notify_failures_total",
 			Help: "Notification deliveries that failed (best-effort channel).",
 		}),
-		StaleShadows: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "meridian_stale_shadows",
-			Help: "Own-instance shadows whose rule no longer targets their calendar (cleanup: meridian wipe).",
-		}, []string{"calendar", "rule"}),
 	}
 	if reg != nil {
 		reg.MustRegister(m.OpsTotal, m.OpErrorsTotal, m.FetchErrorsTotal,
 			m.GuardTriggersTotal, m.CycleDuration, m.LastSuccessfulCycle,
-			m.NotifyFailuresTotal, m.StaleShadows)
+			m.NotifyFailuresTotal)
 	}
 	return m
 }

@@ -29,6 +29,23 @@ func (w Window) Overlaps(start, end time.Time) bool {
 	return !start.Before(w.Start) && start.Before(w.End)
 }
 
+// DiscoveredCalendar is one calendar visible to an account, as found by an
+// AccountSweeper: its provider identity plus a ready adapter for listing
+// and deleting shadows on it.
+type DiscoveredCalendar struct {
+	// ProviderID is the provider-native identity (CalDAV collection path,
+	// Google calendar ID) — the key config maps back to logical names.
+	ProviderID string
+	Adapter    CalendarAdapter
+}
+
+// AccountSweeper discovers every calendar an account can see, configured or
+// not. The engine's sweep auto-GC (decided 2026-08-08) uses this to delete
+// stale own-instance shadows account-wide.
+type AccountSweeper interface {
+	Discover(ctx context.Context) ([]DiscoveredCalendar, error)
+}
+
 // CalendarAdapter is the single five-method contract both providers
 // implement (DESIGN.md Decision 5). No capability flags: protocol asymmetry
 // stays inside each adapter, and all errors are normalized to the taxonomy

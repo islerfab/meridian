@@ -29,6 +29,16 @@ type Config struct {
 	Rules    []Rule
 	Adapters map[string]adapter.CalendarAdapter // by logical calendar ID
 
+	// Sweepers enable account-wide sweep auto-GC (decided 2026-08-08):
+	// every cycle, each account discovers ALL its calendars and deletes
+	// own-instance shadows whose rule does not target that calendar in the
+	// current config. Keyed by account name; optional.
+	Sweepers map[string]adapter.AccountSweeper
+	// CalendarKeys maps account name → provider calendar ID → logical
+	// calendar key ("account/calendar") for configured calendars, so the
+	// sweep can recognize rule-targeted calendars among discovered ones.
+	CalendarKeys map[string]map[string]string
+
 	// Window bounds relative to cycle start (Decision 3): defaults 24h back,
 	// 90 days ahead.
 	Lookback  time.Duration
@@ -143,41 +153,86 @@ func (e *Engine) RunCycle(ctx context.Context) {
 	for _, rule := range e.cfg.Rules {
 		e.reconcileRule(ctx, rule, window, events[rule.From], shadows)
 	}
-	e.reportDrift(shadows)
+	e.sweep(ctx, window)
 }
 
-// reportDrift warns about own-instance shadows whose rule no longer targets
-// their calendar (removed rule, renamed rule ID, or calendar dropped from a
-// rule's destinations). Detection only — cleanup is explicit operator
-// intent via `meridian wipe` (decided 2026-08-08, mer-uks).
-func (e *Engine) reportDrift(shadows map[string]fetchResult[model.Shadow]) {
-	targets := map[string]map[string]bool{} // rule ID → destination set
+// sweep is the account-wide auto-GC (decided 2026-08-08): discover every
+// calendar of every account, delete own-instance shadows (windowed) whose
+// rule does not target that calendar in the current config. Guardrails:
+// only own-instance markers are deleted, and shadows of an active
+// (rule → calendar) pairing are never touched here — their rule's own
+// reconciliation governs them, including when its cycle aborted. Past
+// (out-of-window) shadows remain as history; unbounded cleanup is
+// `meridian wipe`.
+func (e *Engine) sweep(ctx context.Context, window adapter.Window) {
+	if len(e.cfg.Sweepers) == 0 {
+		return
+	}
+	// logical calendar key → rule IDs targeting it
+	targeted := map[string]map[string]bool{}
 	for _, r := range e.cfg.Rules {
-		if targets[r.ID] == nil {
-			targets[r.ID] = map[string]bool{}
-		}
 		for _, dest := range r.To {
-			targets[r.ID][dest] = true
+			if targeted[dest] == nil {
+				targeted[dest] = map[string]bool{}
+			}
+			targeted[dest][r.ID] = true
 		}
 	}
-	e.cfg.Metrics.StaleShadows.Reset()
-	for calendar, res := range shadows {
-		if res.err != nil {
+	for account, sweeper := range e.cfg.Sweepers {
+		discovered, err := sweeper.Discover(ctx)
+		if err != nil {
+			e.cfg.Metrics.FetchErrorsTotal.WithLabelValues("sweep:"+account, errClass(err)).Inc()
+			e.log.Error("sweep: calendar discovery failed", "account", account, "err", err)
 			continue
 		}
-		stale := map[string]int{} // rule ID → count
-		for _, s := range res.items {
-			if s.Marker.Instance != e.cfg.InstanceID {
-				continue // foreign instance: invisible to us
+		for _, dc := range discovered {
+			logical := e.cfg.CalendarKeys[account][dc.ProviderID]
+			allowed := targeted[logical] // nil for unconfigured calendars: nothing allowed
+			shadows, err := dc.Adapter.ListShadows(ctx, window)
+			if err != nil {
+				e.cfg.Metrics.FetchErrorsTotal.WithLabelValues("sweep:"+account, errClass(err)).Inc()
+				e.log.Error("sweep: shadow listing failed", "account", account, "calendar", dc.ProviderID, "err", err)
+				continue
 			}
-			if !targets[s.Marker.Rule][calendar] {
-				stale[s.Marker.Rule]++
+			var stale []model.Shadow
+			own := 0
+			for _, s := range shadows {
+				if s.Marker.Instance != e.cfg.InstanceID {
+					continue // guardrail: other instances are invisible
+				}
+				own++
+				if allowed[s.Marker.Rule] {
+					continue
+				}
+				if !window.Overlaps(s.Content.Start, s.Content.End) {
+					continue // guard 4: never GC outside the window
+				}
+				stale = append(stale, s)
 			}
-		}
-		for ruleID, n := range stale {
-			e.cfg.Metrics.StaleShadows.WithLabelValues(calendar, ruleID).Set(float64(n))
-			e.log.Warn("stale shadows: rule no longer targets this calendar — run `meridian wipe rule` to clean up",
-				"calendar", calendar, "rule", ruleID, "count", n)
+			if len(stale) == 0 {
+				continue
+			}
+			if frac := e.cfg.MassDeleteNotifyFraction; frac > 0 && float64(len(stale))/float64(own) >= frac {
+				e.cfg.Metrics.GuardTriggersTotal.WithLabelValues("sweep", "mass_delete").Inc()
+				msg := fmt.Sprintf("meridian: sweep is deleting %d of %d shadows on %s (%s) — stale rules; verify this config change was intended",
+					len(stale), own, dc.ProviderID, account)
+				e.log.Warn("guard: sweep mass-delete detection", "guard", "mass_delete",
+					"account", account, "calendar", dc.ProviderID, "deletes", len(stale), "existing", own)
+				if err := e.cfg.Notifier.Notify(ctx, msg); err != nil {
+					e.cfg.Metrics.NotifyFailuresTotal.Inc()
+					e.log.Error("notification delivery failed", "err", err)
+				}
+			}
+			for _, s := range stale {
+				if err := dc.Adapter.Delete(ctx, s.Ref); err != nil {
+					e.cfg.Metrics.OpErrorsTotal.WithLabelValues(s.Marker.Rule, string(OpDelete), errClass(err)).Inc()
+					e.log.Error("sweep: delete failed", "calendar", dc.ProviderID, "src", s.Marker.Src.String(), "err", err)
+					continue
+				}
+				e.cfg.Metrics.OpsTotal.WithLabelValues(s.Marker.Rule, string(OpDelete)).Inc()
+				e.log.Info("op", "op", string(OpDelete), "dest", dc.ProviderID,
+					"src", s.Marker.Src.String(), "reason", "stale-rule", "hash", s.Marker.Hash)
+			}
 		}
 	}
 }
@@ -284,7 +339,7 @@ func (e *Engine) detectMassDelete(ctx context.Context, rule, dest string, ops []
 			orphans++
 		}
 	}
-	if float64(orphans)/float64(existing) <= frac {
+	if float64(orphans)/float64(existing) < frac {
 		return
 	}
 	e.cfg.Metrics.GuardTriggersTotal.WithLabelValues(rule, "mass_delete").Inc()

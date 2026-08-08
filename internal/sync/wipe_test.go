@@ -2,10 +2,9 @@ package sync
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
-
-	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/islerfab/meridian/internal/adapter"
 	"github.com/islerfab/meridian/internal/model"
@@ -34,30 +33,103 @@ func TestForeignInstanceShadowsUntouched(t *testing.T) {
 	}
 }
 
-// Drift detection: own-instance shadows whose rule no longer targets their
-// calendar are reported (gauge + warning), never deleted.
-func TestDriftDetectionReportsStaleShadows(t *testing.T) {
-	src, dst := newFake(), newFake()
-	seedShadow(dst, "stale-1", "inst-test", "removed-rule", "a", t0.Add(24*time.Hour))
-	seedShadow(dst, "stale-2", "inst-test", "removed-rule", "b", t0.Add(48*time.Hour))
-	seedShadow(dst, "foreign", "other-instance", "their-rule", "c", t0.Add(24*time.Hour))
+// fakeSweeper exposes fixed provider calendars for the sweep.
+type fakeSweeper struct {
+	calendars   map[string]*fakeAdapter // providerID → adapter
+	discoverErr error
+}
 
-	var metrics *Metrics
+func (f *fakeSweeper) Discover(_ context.Context) ([]adapter.DiscoveredCalendar, error) {
+	if f.discoverErr != nil {
+		return nil, f.discoverErr
+	}
+	var out []adapter.DiscoveredCalendar
+	for id, ad := range f.calendars {
+		out = append(out, adapter.DiscoveredCalendar{ProviderID: id, Adapter: ad})
+	}
+	return out, nil
+}
+
+// Sweep auto-GC (decided 2026-08-08): own-instance shadows whose rule does
+// not target their calendar are DELETED; active pairings and foreign
+// instances are untouched — on configured and unconfigured calendars alike.
+func TestSweepDeletesStaleShadows(t *testing.T) {
+	src, dst := newFake(), newFake()
+	src.events = []model.Event{srcEvent("keep", "x", t0.Add(24*time.Hour))}
+	// dst is the configured destination of r1 (provider id "dst-prov").
+	seedShadow(dst, "stale-rule", "inst-test", "removed-rule", "a", t0.Add(24*time.Hour))
+	seedShadow(dst, "foreign", "other-instance", "removed-rule", "b", t0.Add(24*time.Hour))
+	// An unconfigured calendar of the same account holds strays.
+	other := newFake()
+	seedShadow(other, "stray", "inst-test", "r1", "c", t0.Add(24*time.Hour))
+	seedShadow(other, "their-stray", "other-instance", "r1", "d", t0.Add(24*time.Hour))
+	// Out-of-window stray must survive (windowed sweep: history is kept).
+	seedShadow(other, "old-stray", "inst-test", "gone", "e", t0.Add(-100*24*time.Hour))
+
+	notifier := &capturingNotifier{}
 	e := newTestEngine(t, src, dst, func(c *Config) {
-		metrics = NewMetrics(nil)
-		c.Metrics = metrics
+		// 1 stale of 2 own per calendar = 50%; threshold is strictly
+		// exceeded at 0.4.
+		c.MassDeleteNotifyFraction = 0.4
+		c.Notifier = notifier
+		c.Sweepers = map[string]adapter.AccountSweeper{
+			"acct": &fakeSweeper{calendars: map[string]*fakeAdapter{
+				"dst-prov":   dst,
+				"other-prov": other,
+			}},
+		}
+		c.CalendarKeys = map[string]map[string]string{"acct": {"dst-prov": "dst"}}
 	})
 	e.RunCycle(context.Background())
 
-	if len(dst.shadows) != 3 {
-		t.Errorf("drift detection must not delete anything, shadows=%d", len(dst.shadows))
+	if _, ok := dst.shadows["stale-rule"]; ok {
+		t.Error("stale-rule shadow on configured calendar must be swept")
 	}
-	if got := testutil.ToFloat64(metrics.StaleShadows.WithLabelValues("dst", "removed-rule")); got != 2 {
-		t.Errorf("stale_shadows{dst,removed-rule} = %v, want 2", got)
+	if _, ok := dst.shadows["foreign"]; !ok {
+		t.Error("foreign-instance shadow must survive the sweep")
 	}
-	// Foreign-instance shadows are not ours to report on.
-	if got := testutil.ToFloat64(metrics.StaleShadows.WithLabelValues("dst", "their-rule")); got != 0 {
-		t.Errorf("stale_shadows{dst,their-rule} = %v, want 0", got)
+	// r1's own live shadow (created this cycle) must survive.
+	live := 0
+	for _, s := range dst.shadows {
+		if s.Marker.Rule == "r1" && s.Marker.Instance == "inst-test" {
+			live++
+		}
+	}
+	if live != 1 {
+		t.Errorf("live r1 shadows = %d, want 1", live)
+	}
+	// Unconfigured calendar: r1 does not target it → its r1-marked stray dies.
+	if _, ok := other.shadows["stray"]; ok {
+		t.Error("own-instance stray on unconfigured calendar must be swept")
+	}
+	if _, ok := other.shadows["their-stray"]; !ok {
+		t.Error("foreign stray must survive")
+	}
+	if _, ok := other.shadows["old-stray"]; !ok {
+		t.Error("out-of-window stray must survive (history)")
+	}
+	if len(notifier.messages) == 0 {
+		t.Error("sweep above threshold must notify")
+	}
+}
+
+// A rule whose source fetch failed still protects its shadows from the
+// sweep — the (rule → calendar) pairing is active regardless of cycle
+// health.
+func TestSweepSparesAbortedRulesShadows(t *testing.T) {
+	src, dst := newFake(), newFake()
+	src.eventsErr = fmt.Errorf("boom: %w", adapter.ErrTransient)
+	seedShadow(dst, "r1-shadow", "inst-test", "r1", "a", t0.Add(24*time.Hour))
+
+	e := newTestEngine(t, src, dst, func(c *Config) {
+		c.Sweepers = map[string]adapter.AccountSweeper{
+			"acct": &fakeSweeper{calendars: map[string]*fakeAdapter{"dst-prov": dst}},
+		}
+		c.CalendarKeys = map[string]map[string]string{"acct": {"dst-prov": "dst"}}
+	})
+	e.RunCycle(context.Background())
+	if _, ok := dst.shadows["r1-shadow"]; !ok {
+		t.Error("aborted rule's shadow must never be swept (rule still targets the calendar)")
 	}
 }
 
