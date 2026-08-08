@@ -48,6 +48,11 @@ type Event struct {
 	Status      Status
 	Organizer   string
 	Attendees   []string
+
+	// Marker is non-nil when the source event is itself meridian-owned
+	// (a shadow observed as a source). The zombie-resurrection guard keys
+	// on this; such events are never treated as syncable content.
+	Marker *Marker
 }
 
 // DurationMinutes is the event duration as exposed to CEL filters.
