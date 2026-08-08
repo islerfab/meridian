@@ -40,6 +40,9 @@ type Config struct {
 	// GoogleCalendarID is the provider calendar ID
 	// (e.g. ...@group.calendar.google.com or "primary").
 	GoogleCalendarID string
+	// InstanceID scopes ListShadows to this meridian instance's shadows
+	// (required; server-side query, other instances' markers never fetched).
+	InstanceID string
 }
 
 // Adapter implements adapter.CalendarAdapter for one Google calendar.
@@ -59,6 +62,9 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*Adapter, error) {
 	}
 	if cfg.GoogleCalendarID == "" {
 		return nil, fmt.Errorf("calendar %s: googleCalendarID is required", cfg.CalendarID)
+	}
+	if cfg.InstanceID == "" {
+		return nil, fmt.Errorf("calendar %s: instanceID is required", cfg.CalendarID)
 	}
 	conf := &oauth2.Config{
 		ClientID:     cfg.ClientID,
@@ -110,11 +116,13 @@ func (a *Adapter) ListEvents(ctx context.Context, window adapter.Window) ([]mode
 func (a *Adapter) ListShadows(ctx context.Context, window adapter.Window) ([]model.Shadow, error) {
 	var shadows []model.Shadow
 	call := a.svc.Events.List(a.cfg.GoogleCalendarID).
-		PrivateExtendedProperty(model.GoogleKeyV + "=1").
+		PrivateExtendedProperty(model.GoogleKeyInstance + "=" + a.cfg.InstanceID).
 		SingleEvents(true).
-		TimeMin(window.Start.UTC().Format(time.RFC3339)).
-		TimeMax(window.End.UTC().Format(time.RFC3339)).
 		MaxResults(2500)
+	if !window.IsZero() {
+		call = call.TimeMin(window.Start.UTC().Format(time.RFC3339)).
+			TimeMax(window.End.UTC().Format(time.RFC3339))
+	}
 	err := call.Pages(ctx, func(page *calendar.Events) error {
 		for _, item := range page.Items {
 			if item.Status == "cancelled" {

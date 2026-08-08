@@ -125,6 +125,7 @@ SUMMARY:Busy
 X-MERIDIAN-SRC:cal|uid|
 X-MERIDIAN-RULE:some-rule
 X-MERIDIAN-HASH:deadbeef
+X-MERIDIAN-INSTANCE:inst-test
 X-MERIDIAN-V:1
 END:VEVENT`)
 	ev, err := eventFromComponent(comp, "cal")
@@ -183,7 +184,7 @@ func TestShadowRoundTrip(t *testing.T) {
 	src := model.EventRef{Calendar: "private/main", UID: "abc@ik.me", RecurrenceID: "20260818T120000Z"}
 	shadow := model.Shadow{
 		Content: content,
-		Marker:  model.NewMarker(src, "private-to-work-busy", content),
+		Marker:  model.NewMarker("inst-test", src, "private-to-work-busy", content),
 	}
 
 	cal := buildShadowCalendar("meridian-test", shadow)
@@ -234,7 +235,7 @@ func TestShadowRoundTripAllDay(t *testing.T) {
 	}
 	shadow := model.Shadow{
 		Content: content,
-		Marker:  model.NewMarker(model.EventRef{Calendar: "c", UID: "u"}, "r", content),
+		Marker:  model.NewMarker("inst-test", model.EventRef{Calendar: "c", UID: "u"}, "r", content),
 	}
 	cal := buildShadowCalendar("meridian-test", shadow)
 

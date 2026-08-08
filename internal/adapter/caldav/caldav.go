@@ -40,6 +40,9 @@ type Config struct {
 	// CalendarID is the logical calendar reference used in EventRef.Calendar
 	// and ShadowRef.Calendar (the config-file name, e.g. "private/main").
 	CalendarID string
+	// InstanceID scopes ListShadows to this meridian instance's shadows
+	// (required; markers of other instances are invisible).
+	InstanceID string
 	// Expansion selects recurrence expansion: "server" (default) or
 	// "client". Client-side expansion is an explicit opt-in and is not
 	// implemented yet; requesting it is a startup error, never a fallback.
@@ -67,6 +70,9 @@ func New(cfg Config, log *slog.Logger) (*Adapter, error) {
 	}
 	if cfg.Endpoint == "" || cfg.CalendarPath == "" {
 		return nil, fmt.Errorf("calendar %s: endpoint and calendarPath are required", cfg.CalendarID)
+	}
+	if cfg.InstanceID == "" {
+		return nil, fmt.Errorf("calendar %s: instanceID is required", cfg.CalendarID)
 	}
 	httpClient := webdav.HTTPClientWithBasicAuth(nil, cfg.Username, cfg.Password)
 	client, err := caldav.NewClient(httpClient, cfg.Endpoint)
@@ -124,6 +130,9 @@ func (a *Adapter) ListShadows(ctx context.Context, window adapter.Window) ([]mod
 				// updated or GC'd — loud is mandatory.
 				a.log.Error("malformed meridian marker on destination event", "path", obj.Path, "err", err)
 				continue
+			}
+			if marker.Instance != a.cfg.InstanceID {
+				continue // another meridian instance's shadow: invisible
 			}
 			content, err := contentFromComponent(comp)
 			if err != nil {
@@ -188,15 +197,16 @@ func (a *Adapter) query(ctx context.Context, window adapter.Window, expand bool)
 	if expand {
 		comp.Expand = &caldav.CalendarExpandRequest{Start: window.Start, End: window.End}
 	}
+	eventFilter := caldav.CompFilter{Name: ical.CompEvent}
+	if !window.IsZero() {
+		eventFilter.Start = window.Start
+		eventFilter.End = window.End
+	}
 	query := &caldav.CalendarQuery{
 		CompRequest: comp,
 		CompFilter: caldav.CompFilter{
-			Name: ical.CompCalendar,
-			Comps: []caldav.CompFilter{{
-				Name:  ical.CompEvent,
-				Start: window.Start,
-				End:   window.End,
-			}},
+			Name:  ical.CompCalendar,
+			Comps: []caldav.CompFilter{eventFilter},
 		},
 	}
 	return a.client.QueryCalendar(ctx, a.cfg.CalendarPath, query)

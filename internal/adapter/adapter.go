@@ -9,11 +9,16 @@ import (
 
 // Window is the sync window; membership is overlap, applied identically to
 // source fetches, desired-set computation, and orphan GC (DESIGN.md
-// Decision 3).
+// Decision 3). The zero Window means UNBOUNDED — no time filter at all —
+// used only by wipe (ListShadows); ListEvents requires real bounds
+// (server-side expansion needs them).
 type Window struct {
 	Start time.Time
 	End   time.Time
 }
+
+// IsZero reports the unbounded window.
+func (w Window) IsZero() bool { return w.Start.IsZero() && w.End.IsZero() }
 
 // Overlaps reports whether [start, end) overlaps the window. Zero-length
 // events overlap when their instant lies inside the window.

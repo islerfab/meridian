@@ -43,6 +43,7 @@ func main() {
 			Password:     os.Getenv("MERIDIAN_SPIKE_PASS"),
 			CalendarPath: calPath,
 			CalendarID:   "spike/test",
+			InstanceID:   "smoke-instance",
 		}, slog.Default())
 	case "google":
 		a, err = google.New(ctx, google.Config{
@@ -51,6 +52,7 @@ func main() {
 			RefreshToken:     os.Getenv("MERIDIAN_GOOGLE_REFRESH_TOKEN"),
 			CalendarID:       "sandbox/google",
 			GoogleCalendarID: os.Getenv("MERIDIAN_GOOGLE_CALENDAR_ID"),
+			InstanceID:       "smoke-instance",
 		}, slog.Default())
 	default:
 		fatal("unknown provider %q", *provider)
@@ -69,7 +71,7 @@ func main() {
 		Reminders:   []int{15},
 	}
 	src := model.EventRef{Calendar: "private/main", UID: "smoke-uid", RecurrenceID: ""}
-	shadow := model.Shadow{Content: content, Marker: model.NewMarker(src, "smoke-rule", content)}
+	shadow := model.Shadow{Content: content, Marker: model.NewMarker("smoke-instance", src, "smoke-rule", content)}
 
 	step("Create", a.Create(ctx, shadow))
 
@@ -85,7 +87,7 @@ func main() {
 
 	// Update with changed content at the same object.
 	content.Title = "smoke shadow v2"
-	updated := model.Shadow{Ref: got.Ref, Content: content, Marker: model.NewMarker(src, "smoke-rule", content)}
+	updated := model.Shadow{Ref: got.Ref, Content: content, Marker: model.NewMarker("smoke-instance", src, "smoke-rule", content)}
 	step("Update", a.Update(ctx, updated))
 	shadows = mustShadows(ctx, a, window, 1)
 	if shadows[0].Content.Title != "smoke shadow v2" || shadows[0].Marker.Hash != updated.Marker.Hash {

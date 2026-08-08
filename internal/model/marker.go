@@ -14,31 +14,36 @@ const MarkerVersion = 1
 // Google: extendedProperties.private keys. CalDAV: X- properties on the
 // shadow VEVENT.
 const (
-	GoogleKeySrc  = "meridian.src"
-	GoogleKeyRule = "meridian.rule"
-	GoogleKeyHash = "meridian.hash"
-	GoogleKeyV    = "meridian.v"
+	GoogleKeySrc      = "meridian.src"
+	GoogleKeyRule     = "meridian.rule"
+	GoogleKeyHash     = "meridian.hash"
+	GoogleKeyInstance = "meridian.instance"
+	GoogleKeyV        = "meridian.v"
 
-	CalDAVPropSrc  = "X-MERIDIAN-SRC"
-	CalDAVPropRule = "X-MERIDIAN-RULE"
-	CalDAVPropHash = "X-MERIDIAN-HASH"
-	CalDAVPropV    = "X-MERIDIAN-V"
+	CalDAVPropSrc      = "X-MERIDIAN-SRC"
+	CalDAVPropRule     = "X-MERIDIAN-RULE"
+	CalDAVPropHash     = "X-MERIDIAN-HASH"
+	CalDAVPropInstance = "X-MERIDIAN-INSTANCE"
+	CalDAVPropV        = "X-MERIDIAN-V"
 )
 
 // Marker is the ownership marker every shadow event carries. It is the only
 // cross-cycle state meridian has: Src keys change detection and orphan GC,
-// Rule scopes shadows to the rule that created them, Hash is the
-// content hash of the post-transform desired content.
+// Instance+Rule scope shadows to the meridian instance and rule that created
+// them (instance+rule is globally unique — this is what makes multiple
+// instances feeding one destination safe), Hash is the content hash of the
+// post-transform desired content.
 type Marker struct {
-	Src  EventRef
-	Rule string
-	Hash string
-	V    int
+	Src      EventRef
+	Rule     string
+	Hash     string
+	Instance string
+	V        int
 }
 
 // NewMarker builds a current-version marker for desired content.
-func NewMarker(src EventRef, rule string, content ShadowContent) Marker {
-	return Marker{Src: src, Rule: rule, Hash: ContentHash(content), V: MarkerVersion}
+func NewMarker(instance string, src EventRef, rule string, content ShadowContent) Marker {
+	return Marker{Src: src, Rule: rule, Hash: ContentHash(content), Instance: instance, V: MarkerVersion}
 }
 
 // --- Src composite ---------------------------------------------------------
@@ -81,12 +86,13 @@ func unescapeRefPart(s string) string {
 // the CalDAV X-MERIDIAN-* set. Adapters translate the map into their SDK's
 // representation; nothing protocol-specific lives beyond the key names.
 func (m Marker) Properties(google bool) map[string]string {
-	src, rule, hash, v := keysFor(google)
+	src, rule, hash, instance, v := keysFor(google)
 	return map[string]string{
-		src:  m.Src.String(),
-		rule: m.Rule,
-		hash: m.Hash,
-		v:    strconv.Itoa(m.V),
+		src:      m.Src.String(),
+		rule:     m.Rule,
+		hash:     m.Hash,
+		instance: m.Instance,
+		v:        strconv.Itoa(m.V),
 	}
 }
 
@@ -96,16 +102,17 @@ func (m Marker) Properties(google bool) map[string]string {
 // marker returns an error; callers surface it loudly rather than silently
 // treating an owned-looking event as foreign.
 func ParseMarker(props map[string]string, google bool) (m Marker, found bool, err error) {
-	srcKey, ruleKey, hashKey, vKey := keysFor(google)
+	srcKey, ruleKey, hashKey, instanceKey, vKey := keysFor(google)
 	srcRaw, srcOK := props[srcKey]
 	rule, ruleOK := props[ruleKey]
 	hash, hashOK := props[hashKey]
+	instance, instanceOK := props[instanceKey]
 	vRaw, vOK := props[vKey]
-	if !srcOK && !ruleOK && !hashOK && !vOK {
+	if !srcOK && !ruleOK && !hashOK && !instanceOK && !vOK {
 		return Marker{}, false, nil
 	}
-	if !srcOK || !ruleOK || !hashOK || !vOK {
-		return Marker{}, true, fmt.Errorf("marker incomplete: have src=%t rule=%t hash=%t v=%t", srcOK, ruleOK, hashOK, vOK)
+	if !srcOK || !ruleOK || !hashOK || !instanceOK || !vOK {
+		return Marker{}, true, fmt.Errorf("marker incomplete: have src=%t rule=%t hash=%t instance=%t v=%t", srcOK, ruleOK, hashOK, instanceOK, vOK)
 	}
 	v, err := strconv.Atoi(vRaw)
 	if err != nil {
@@ -118,15 +125,15 @@ func ParseMarker(props map[string]string, google bool) (m Marker, found bool, er
 	if err != nil {
 		return Marker{}, true, fmt.Errorf("marker: %w", err)
 	}
-	if rule == "" || hash == "" {
-		return Marker{}, true, fmt.Errorf("marker: empty rule or hash")
+	if rule == "" || hash == "" || instance == "" {
+		return Marker{}, true, fmt.Errorf("marker: empty rule, hash, or instance")
 	}
-	return Marker{Src: src, Rule: rule, Hash: hash, V: v}, true, nil
+	return Marker{Src: src, Rule: rule, Hash: hash, Instance: instance, V: v}, true, nil
 }
 
-func keysFor(google bool) (src, rule, hash, v string) {
+func keysFor(google bool) (src, rule, hash, instance, v string) {
 	if google {
-		return GoogleKeySrc, GoogleKeyRule, GoogleKeyHash, GoogleKeyV
+		return GoogleKeySrc, GoogleKeyRule, GoogleKeyHash, GoogleKeyInstance, GoogleKeyV
 	}
-	return CalDAVPropSrc, CalDAVPropRule, CalDAVPropHash, CalDAVPropV
+	return CalDAVPropSrc, CalDAVPropRule, CalDAVPropHash, CalDAVPropInstance, CalDAVPropV
 }

@@ -39,13 +39,14 @@ Rejected: delta-driven sync (Google `syncToken` + CalDAV sync-collection with a 
 | Source ref | `meridian.src` | `X-MERIDIAN-SRC` | Readable composite: source calendar ID + source event UID + recurrence-instance ID. Not hashed — debuggability over compactness (values stay well under Google's 1024-char limit). |
 | Rule ID | `meridian.rule` | `X-MERIDIAN-RULE` | The `rules.yaml` rule that created this shadow. |
 | Content hash | `meridian.hash` | `X-MERIDIAN-HASH` | Hash of the **post-transform desired content**. |
+| Instance ID | `meridian.instance` | `X-MERIDIAN-INSTANCE` | This meridian instance's identity (added 2026-08-08, mer-uks). Required config value; not secret, but must be unique across instances and stable for the instance's lifetime — changing it orphans every shadow the instance wrote. |
 | Schema version | `meridian.v` | `X-MERIDIAN-V` | Marker format version (`1`). |
 
 **Change detection**: compute desired content → hash → compare against the hash **stored in the marker**. The provider's returned field values are never compared, so server-side normalization (whitespace, field coercion, reordering) is structurally irrelevant — avoids the spurious-update / re-appearing-event bug class in field-compare engines (CalendarSync#167). Update iff hashes differ; a write replaces content + marker together.
 
-**Rule ID consequences**: rules targeting the same destination never fight over each other's shadows; orphan GC is per-rule (removing a rule from config cleanly GCs exactly its shadows); multi-instance deployments with distinct rule IDs cannot collide.
+**Instance+rule scoping consequences (revised 2026-08-08, mer-uks)**: ownership scope = instance ID + rule ID, globally unique. Rules targeting the same destination never fight over each other's shadows; **multiple meridian instances may feed one destination** — each instance's listing and reconciliation are scoped to its own instance ID, other instances' shadows are as invisible as foreign events. ~~Removing a rule from config cleanly GCs exactly its shadows~~ **automatic rule-removal GC dropped** (indistinguishable from another instance's shadows without instance identity; even with it, implicit config-diff deletion was rejected in favor of explicit intent): cleanup is `meridian wipe calendar <id>` / `meridian wipe rule <rule-id>` (deletes own-instance shadows, unbounded window — catches out-of-window strays), and the engine reports drift every cycle — own-instance shadows whose rule no longer targets their calendar → `meridian_stale_shadows` gauge + warning log, detection without deletion. Duplicate rule IDs within one config = startup error.
 
-**Google bonus**: owned events are server-side queryable via `privateExtendedProperty=meridian.v=1`.
+**Google bonus**: owned shadows are server-side queryable via `privateExtendedProperty=meridian.instance=<id>` — shadow listing and wipe never fetch other instances' or foreign events at all.
 
 Rejected: minimal marker + field-by-field compare (CalendarSync style — inherits provider normalization quirks); single JSON-blob property (opaque, messier versioning).
 

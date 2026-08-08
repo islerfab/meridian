@@ -34,7 +34,7 @@ type Op struct {
 //     kept over the first-listed one, extras deleted (decided 2026-08-08)
 //   - shadows of OTHER rules are invisible here (caller filters by rule ID);
 //     shadows of unknown/removed rules are deliberately not swept (mer-uks)
-func diff(dest string, rule string, desired map[model.EventRef]model.ShadowContent, actual []model.Shadow, window adapter.Window) []Op {
+func diff(dest, instance, rule string, desired map[model.EventRef]model.ShadowContent, actual []model.Shadow, window adapter.Window) []Op {
 	var ops []Op
 
 	// Group the rule's shadows by source ref.
@@ -52,7 +52,7 @@ func diff(dest string, rule string, desired map[model.EventRef]model.ShadowConte
 				Dest: dest,
 				Shadow: model.Shadow{
 					Content: content,
-					Marker:  model.NewMarker(src, rule, content),
+					Marker:  model.NewMarker(instance, src, rule, content),
 				},
 				Reason: "new",
 			})
@@ -78,7 +78,7 @@ func diff(dest string, rule string, desired map[model.EventRef]model.ShadowConte
 				Shadow: model.Shadow{
 					Ref:     keeper.Ref,
 					Content: content,
-					Marker:  model.NewMarker(src, rule, content),
+					Marker:  model.NewMarker(instance, src, rule, content),
 				},
 				Reason: "content-changed",
 			})

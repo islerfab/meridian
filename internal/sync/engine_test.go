@@ -20,6 +20,9 @@ type fakeAdapter struct {
 	eventsErr  error
 	shadowsErr error
 
+	captureWindow    bool
+	lastShadowWindow adapter.Window
+
 	creates, updates, deletes int
 }
 
@@ -34,7 +37,10 @@ func (f *fakeAdapter) ListEvents(_ context.Context, _ adapter.Window) ([]model.E
 	return f.events, nil
 }
 
-func (f *fakeAdapter) ListShadows(_ context.Context, _ adapter.Window) ([]model.Shadow, error) {
+func (f *fakeAdapter) ListShadows(_ context.Context, w adapter.Window) ([]model.Shadow, error) {
+	if f.captureWindow {
+		f.lastShadowWindow = w
+	}
 	if f.shadowsErr != nil {
 		return nil, f.shadowsErr
 	}
@@ -97,6 +103,7 @@ func (c *capturingNotifier) Notify(_ context.Context, msg string) error {
 func newTestEngine(t *testing.T, src, dst *fakeAdapter, mutate func(*Config)) *Engine {
 	t.Helper()
 	cfg := Config{
+		InstanceID: "inst-test",
 		Rules: []Rule{{
 			ID: "r1", From: "src", To: []string{"dst"},
 			Filter: passAll, Transform: busyTransform,
@@ -178,7 +185,7 @@ func TestHashChangeDetectionIgnoresProviderFields(t *testing.T) {
 func TestZombieGuardSkipsOwnedSourceEvents(t *testing.T) {
 	src, dst := newFake(), newFake()
 	owned := srcEvent("zombie", "Busy", t0.Add(24*time.Hour))
-	m := model.NewMarker(model.EventRef{Calendar: "dst", UID: "orig"}, "other-rule", model.ShadowContent{})
+	m := model.NewMarker("inst-test", model.EventRef{Calendar: "dst", UID: "orig"}, "other-rule", model.ShadowContent{})
 	owned.Marker = &m
 	src.events = []model.Event{owned, srcEvent("real", "Standup", t0.Add(24*time.Hour))}
 
@@ -259,13 +266,13 @@ func TestWindowedGCLeavesOutOfWindowShadows(t *testing.T) {
 	dst.shadows["stale"] = model.Shadow{
 		Ref:     model.ShadowRef{Calendar: "dst", ID: "stale"},
 		Content: old,
-		Marker:  model.NewMarker(model.EventRef{Calendar: "src", UID: "gone"}, "r1", old),
+		Marker:  model.NewMarker("inst-test", model.EventRef{Calendar: "src", UID: "gone"}, "r1", old),
 	}
 	inWindow := model.ShadowContent{Title: "Busy", Start: t0.Add(24 * time.Hour), End: t0.Add(25 * time.Hour)}
 	dst.shadows["orphan"] = model.Shadow{
 		Ref:     model.ShadowRef{Calendar: "dst", ID: "orphan"},
 		Content: inWindow,
-		Marker:  model.NewMarker(model.EventRef{Calendar: "src", UID: "also-gone"}, "r1", inWindow),
+		Marker:  model.NewMarker("inst-test", model.EventRef{Calendar: "src", UID: "also-gone"}, "r1", inWindow),
 	}
 	src.events = []model.Event{srcEvent("keep", "x", t0.Add(24*time.Hour))}
 
@@ -314,10 +321,11 @@ func TestPerRuleFailureIsolation(t *testing.T) {
 	dst.shadows["a-shadow"] = model.Shadow{
 		Ref:     model.ShadowRef{Calendar: "dst", ID: "a-shadow"},
 		Content: c,
-		Marker:  model.NewMarker(model.EventRef{Calendar: "srcA", UID: "a1"}, "ruleA", c),
+		Marker:  model.NewMarker("inst-test", model.EventRef{Calendar: "srcA", UID: "a1"}, "ruleA", c),
 	}
 
 	cfg := Config{
+		InstanceID: "inst-test",
 		Rules: []Rule{
 			{ID: "ruleA", From: "srcA", To: []string{"dst"}, Filter: passAll, Transform: busyTransform},
 			{ID: "ruleB", From: "srcB", To: []string{"dst"}, Filter: passAll, Transform: busyTransform},
@@ -354,7 +362,7 @@ func TestRuleScopingAndUnknownRuleShadows(t *testing.T) {
 	dst.shadows["foreign-rule"] = model.Shadow{
 		Ref:     model.ShadowRef{Calendar: "dst", ID: "foreign-rule"},
 		Content: c,
-		Marker:  model.NewMarker(model.EventRef{Calendar: "src", UID: "x"}, "removed-rule", c),
+		Marker:  model.NewMarker("inst-test", model.EventRef{Calendar: "src", UID: "x"}, "removed-rule", c),
 	}
 	e := newTestEngine(t, src, dst, nil)
 	e.RunCycle(context.Background())
@@ -376,12 +384,12 @@ func TestDuplicateShadowsDeduped(t *testing.T) {
 	dst.shadows["dup-stale"] = model.Shadow{
 		Ref:     model.ShadowRef{Calendar: "dst", ID: "dup-stale"},
 		Content: stale,
-		Marker:  model.NewMarker(srcRef, "r1", stale),
+		Marker:  model.NewMarker("inst-test", srcRef, "r1", stale),
 	}
 	dst.shadows["dup-good"] = model.Shadow{
 		Ref:     model.ShadowRef{Calendar: "dst", ID: "dup-good"},
 		Content: want,
-		Marker:  model.NewMarker(srcRef, "r1", want),
+		Marker:  model.NewMarker("inst-test", srcRef, "r1", want),
 	}
 
 	e := newTestEngine(t, src, dst, nil)
@@ -407,7 +415,7 @@ func TestNewValidatesWiring(t *testing.T) {
 		{ID: "x", From: "a", To: []string{"a"}}, // self-sync
 	}
 	for i, r := range cases {
-		if _, err := New(Config{Rules: []Rule{r}, Adapters: ad}); err == nil {
+		if _, err := New(Config{InstanceID: "inst-test", Rules: []Rule{r}, Adapters: ad}); err == nil {
 			t.Errorf("case %d (%+v): expected wiring error", i, r)
 		}
 	}

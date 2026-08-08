@@ -104,7 +104,7 @@ func TestEventFromGoogleAllDay(t *testing.T) {
 
 func TestEventFromGoogleOwned(t *testing.T) {
 	content := model.ShadowContent{Title: "Busy", Start: time.Now().UTC(), End: time.Now().UTC()}
-	marker := model.NewMarker(model.EventRef{Calendar: "c", UID: "u"}, "rule-x", content)
+	marker := model.NewMarker("inst-test", model.EventRef{Calendar: "c", UID: "u"}, "rule-x", content)
 	item := &calendar.Event{
 		Id:    "shadow1",
 		Start: &calendar.EventDateTime{DateTime: "2026-08-18T12:00:00Z"},
@@ -140,7 +140,7 @@ func TestShadowRoundTrip(t *testing.T) {
 		Reminders:   []int{15, 30},
 	}
 	src := model.EventRef{Calendar: "private/main", UID: "abc@ik.me", RecurrenceID: "20260818T120000Z"}
-	shadow := model.Shadow{Content: content, Marker: model.NewMarker(src, "rule-y", content)}
+	shadow := model.Shadow{Content: content, Marker: model.NewMarker("inst-test", src, "rule-y", content)}
 
 	item := googleFromShadow(shadow)
 	item.Id = "created-id" // assigned server-side
@@ -167,7 +167,7 @@ func TestShadowRoundTripAllDay(t *testing.T) {
 		End:    time.Date(2026, 8, 13, 0, 0, 0, 0, time.UTC),
 		AllDay: true,
 	}
-	shadow := model.Shadow{Content: content, Marker: model.NewMarker(model.EventRef{Calendar: "c", UID: "u"}, "r", content)}
+	shadow := model.Shadow{Content: content, Marker: model.NewMarker("inst-test", model.EventRef{Calendar: "c", UID: "u"}, "r", content)}
 	item := googleFromShadow(shadow)
 	if item.Start.Date != "2026-08-12" || item.Start.DateTime != "" {
 		t.Errorf("all-day must use Date field: %+v", item.Start)

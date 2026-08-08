@@ -40,6 +40,7 @@ func TestNewRejectsClientExpansion(t *testing.T) {
 		Endpoint:     "https://example.com",
 		CalendarPath: "/calendars/x/y/",
 		CalendarID:   "test",
+		InstanceID:   "inst-test",
 		Expansion:    "client",
 	}, nil)
 	if err == nil {
@@ -49,6 +50,7 @@ func TestNewRejectsClientExpansion(t *testing.T) {
 		Endpoint:     "https://example.com",
 		CalendarPath: "/calendars/x/y/",
 		CalendarID:   "test",
+		InstanceID:   "inst-test",
 		Expansion:    "sideways",
 	}, nil); err == nil {
 		t.Fatal("unknown expansion mode must be rejected")
@@ -65,6 +67,7 @@ func newTestAdapter(t *testing.T, handler http.HandlerFunc) *Adapter {
 		Password:     "p",
 		CalendarPath: "/calendars/u/test/",
 		CalendarID:   "test",
+		InstanceID:   "inst-test",
 	}, nil)
 	if err != nil {
 		t.Fatal(err)

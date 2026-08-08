@@ -48,6 +48,7 @@ func TestParseEventRefErrors(t *testing.T) {
 
 func testMarker() Marker {
 	return NewMarker(
+		"inst-test",
 		EventRef{Calendar: "private/main", UID: "abc@ik.me", RecurrenceID: "20260818T120000Z"},
 		"private-to-work-busy",
 		ShadowContent{
@@ -75,7 +76,7 @@ func TestMarkerRoundTrip(t *testing.T) {
 func TestMarkerPropertyKeys(t *testing.T) {
 	m := testMarker()
 	gp := m.Properties(true)
-	for _, k := range []string{GoogleKeySrc, GoogleKeyRule, GoogleKeyHash, GoogleKeyV} {
+	for _, k := range []string{GoogleKeySrc, GoogleKeyRule, GoogleKeyHash, GoogleKeyInstance, GoogleKeyV} {
 		if _, ok := gp[k]; !ok {
 			t.Errorf("google properties missing key %q (got %v)", k, gp)
 		}
@@ -84,7 +85,7 @@ func TestMarkerPropertyKeys(t *testing.T) {
 		t.Errorf("meridian.v = %q, want \"1\"", gp[GoogleKeyV])
 	}
 	cp := m.Properties(false)
-	for _, k := range []string{CalDAVPropSrc, CalDAVPropRule, CalDAVPropHash, CalDAVPropV} {
+	for _, k := range []string{CalDAVPropSrc, CalDAVPropRule, CalDAVPropHash, CalDAVPropInstance, CalDAVPropV} {
 		if _, ok := cp[k]; !ok {
 			t.Errorf("caldav properties missing key %q (got %v)", k, cp)
 		}
@@ -120,6 +121,8 @@ func TestParseMarkerMalformed(t *testing.T) {
 		"future version":      mutate(func(p map[string]string) { p[GoogleKeyV] = "2" }),
 		"malformed src":       mutate(func(p map[string]string) { p[GoogleKeySrc] = "no-pipes-here" }),
 		"empty rule":          mutate(func(p map[string]string) { p[GoogleKeyRule] = "" }),
+		"empty instance":      mutate(func(p map[string]string) { p[GoogleKeyInstance] = "" }),
+		"missing instance":    mutate(func(p map[string]string) { delete(p, GoogleKeyInstance) }),
 	}
 	for name, props := range cases {
 		_, found, err := ParseMarker(props, true)

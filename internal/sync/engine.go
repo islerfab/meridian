@@ -19,6 +19,13 @@ import (
 
 // Config assembles an Engine.
 type Config struct {
+	// InstanceID is this meridian instance's identity (required, not
+	// secret, stable for the instance's lifetime — changing it orphans
+	// every shadow the instance ever wrote). Instance+rule is the globally
+	// unique ownership scope: multiple instances may feed one destination
+	// as long as instance IDs differ (decided 2026-08-08, mer-uks).
+	InstanceID string
+
 	Rules    []Rule
 	Adapters map[string]adapter.CalendarAdapter // by logical calendar ID
 
@@ -51,10 +58,18 @@ type Engine struct {
 
 // New validates wiring (every rule's calendars must have adapters).
 func New(cfg Config) (*Engine, error) {
+	if cfg.InstanceID == "" {
+		return nil, errors.New("sync: instance ID is required (unique per meridian instance; changing it orphans all shadows)")
+	}
+	seen := map[string]bool{}
 	for _, r := range cfg.Rules {
 		if r.ID == "" {
 			return nil, errors.New("sync: rule with empty ID")
 		}
+		if seen[r.ID] {
+			return nil, fmt.Errorf("sync: duplicate rule ID %q (marker collision)", r.ID)
+		}
+		seen[r.ID] = true
 		if _, ok := cfg.Adapters[r.From]; !ok {
 			return nil, fmt.Errorf("sync: rule %s: no adapter for source calendar %q", r.ID, r.From)
 		}
@@ -128,6 +143,43 @@ func (e *Engine) RunCycle(ctx context.Context) {
 	for _, rule := range e.cfg.Rules {
 		e.reconcileRule(ctx, rule, window, events[rule.From], shadows)
 	}
+	e.reportDrift(shadows)
+}
+
+// reportDrift warns about own-instance shadows whose rule no longer targets
+// their calendar (removed rule, renamed rule ID, or calendar dropped from a
+// rule's destinations). Detection only — cleanup is explicit operator
+// intent via `meridian wipe` (decided 2026-08-08, mer-uks).
+func (e *Engine) reportDrift(shadows map[string]fetchResult[model.Shadow]) {
+	targets := map[string]map[string]bool{} // rule ID → destination set
+	for _, r := range e.cfg.Rules {
+		if targets[r.ID] == nil {
+			targets[r.ID] = map[string]bool{}
+		}
+		for _, dest := range r.To {
+			targets[r.ID][dest] = true
+		}
+	}
+	e.cfg.Metrics.StaleShadows.Reset()
+	for calendar, res := range shadows {
+		if res.err != nil {
+			continue
+		}
+		stale := map[string]int{} // rule ID → count
+		for _, s := range res.items {
+			if s.Marker.Instance != e.cfg.InstanceID {
+				continue // foreign instance: invisible to us
+			}
+			if !targets[s.Marker.Rule][calendar] {
+				stale[s.Marker.Rule]++
+			}
+		}
+		for ruleID, n := range stale {
+			e.cfg.Metrics.StaleShadows.WithLabelValues(calendar, ruleID).Set(float64(n))
+			e.log.Warn("stale shadows: rule no longer targets this calendar — run `meridian wipe rule` to clean up",
+				"calendar", calendar, "rule", ruleID, "count", n)
+		}
+	}
 }
 
 func (e *Engine) reconcileRule(ctx context.Context, rule Rule, window adapter.Window, src fetchResult[model.Event], shadows map[string]fetchResult[model.Shadow]) {
@@ -163,11 +215,14 @@ func (e *Engine) reconcileRule(ctx context.Context, rule Rule, window adapter.Wi
 		}
 		var mine []model.Shadow
 		for _, s := range destShadows.items {
-			if s.Marker.Rule == rule.ID {
+			// Instance+rule scoping: adapters already filter by instance,
+			// but the engine re-checks — foreign-instance shadows must be
+			// untouchable even with a misconfigured adapter.
+			if s.Marker.Instance == e.cfg.InstanceID && s.Marker.Rule == rule.ID {
 				mine = append(mine, s)
 			}
 		}
-		ops := diff(dest, rule.ID, desired, mine, window)
+		ops := diff(dest, e.cfg.InstanceID, rule.ID, desired, mine, window)
 		e.detectMassDelete(ctx, rule.ID, dest, ops, len(mine), log)
 		if !e.executeOps(ctx, rule.ID, dest, ops, log) {
 			ruleOK = false
