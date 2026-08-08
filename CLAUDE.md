@@ -39,6 +39,8 @@ Design for the OSS use case (no homefab-specific assumptions in code/chart), but
 
 Same discipline as homelab: never generate passwords/tokens into chat, never decrypt secrets files into context. OAuth refresh tokens land in SOPS-encrypted Secrets in homelab-argocd, not in this repo.
 
+**Never read `.env` (or any local credentials file) with Read/cat/grep** — its values must not enter the conversation context. Programs load it themselves (godotenv); when running commands, rely on that and never echo its contents.
+
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:6cd5cc61 -->
 ## Beads Issue Tracker

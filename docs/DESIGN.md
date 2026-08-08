@@ -59,6 +59,8 @@ Rejected: minimal marker + field-by-field compare (CalendarSync style — inheri
 
 **Known risk**: sabre/dav `expand` has had historical bugs (Infomaniak's deployed version unknown) and go-webdav's client support is new (Oct 2025). Early Phase 1 acceptance testing against real Infomaniak recurring events (incl. exceptions and overridden instances) is the gate; adapter boundary isolates the swap if needed.
 
+**Gate PASSED (2026-08-07, mer-pdn, `hack/spike-expand`)**: Infomaniak runs sabre/dav 4.3.1; expand via go-webdav v0.7.0 `CalendarExpandRequest` verified against real events — weekly+EXDATE (excluded instance absent), overridden/moved instance (original slot replaced, RECURRENCE-ID references the *original* occurrence), all-day recurring (instances stay DATE-valued, RECURRENCE-ID also DATE), DST-crossing weekly (wall-clock preserved, 07:00Z→08:00Z at CEST→CET). Timed instances arrive as UTC `Z` values with no TZID, and *every* instance (including unmodified ones) carries a unique RECURRENCE-ID — exactly the identity + UTC-instant model the engine assumes. Infomaniak quirk for adapter/docs: CalDAV login must be the internal account ID (`USERxxxxx`), not the email — email auth "succeeds" but principal lookup 404s ("Principal with name … not found"); principal = `/principals/USERxxxxx/`, home set = `/calendars/USERxxxxx/`.
+
 **Time model requirements**:
 
 - Internal model is absolute instants (`time.Time`, UTC) + `AllDay bool`. No TZ math in the engine.

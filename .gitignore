@@ -10,3 +10,6 @@ dist/
 *.db
 .beads-credential-key
 .beads/proxieddb/
+
+# Local secrets for spike/testing (see .env.example)
+.env
