@@ -1,0 +1,31 @@
+# Sandbox E2E config: mirrors the Infomaniak meridian-spike calendar into
+# the Google meridian-sandbox calendar. Credentials from .env (godotenv).
+# Contains no secrets — env var NAMES only.
+instance: sandbox
+interval: 1m
+
+accounts:
+  - name: spike
+    type: caldav
+    endpoint: https://sync.infomaniak.com
+    usernameEnv: MERIDIAN_SPIKE_USER
+    passwordEnv: MERIDIAN_SPIKE_PASS
+    calendars:
+      - name: main
+        path: /calendars/FI00468/ea5e3fc8-a0c7-4a77-8c62-02e31045067f/
+  - name: sandbox
+    type: google
+    clientIDEnv: MERIDIAN_GOOGLE_CLIENT_ID
+    clientSecretEnv: MERIDIAN_GOOGLE_CLIENT_SECRET
+    refreshTokenEnv: MERIDIAN_GOOGLE_REFRESH_TOKEN
+    calendars:
+      - name: main
+        id: 68e3b714c59386ab4b5af44b3a87a0c18173969158bcbb2a9722fbe6b47384fa@group.calendar.google.com
+
+rules:
+  - id: spike-mirror
+    from: spike/main
+    to: [sandbox/main]
+    transform:
+      title: "[spike] {{ .Title }}"
+      transparent: false
