@@ -26,8 +26,8 @@ Development is **very much interactive** right now. Even in auto/autonomous mode
 
 ## Environment
 
-- ARM64 (aarch64) WSL2. Go 1.26.5 at `~/.local/go/bin` (on PATH via `.bashrc`; in non-login shells use the full path).
-- Build tooling: Taskfile.yml, run via `go tool task <target>` (Task is a go.mod tool dep) — `go tool task ci` = vet+lint+test+build. golangci-lint + goreleaser binaries at `~/.local/bin`. CLI framework: urfave/cli v3, isolated in `internal/cli`.
+- ARM64 (aarch64) WSL2. Go, golangci-lint, and goreleaser are home-manager-managed (`~/.config/home-manager/home/modules/dev-go.nix`, from nixpkgs-unstable) and live in `~/.nix-profile/bin` — on PATH in all shells, no workarounds needed.
+- Build tooling: Taskfile.yml, run via `go tool task <target>` (Task is a go.mod tool dep) — `go tool task ci` = vet+lint+test+build. CLI framework: urfave/cli v3, isolated in `internal/cli`.
 - Releases: conventional commits + semver (0.x). `go tool task release` tags via svu (go.mod tool dep) and pushes; `.github/workflows/release.yml` runs GoReleaser on `v*` tags — binaries + GH release + changelog (built-in conventional-commit groups) + OCI image via integrated ko (no Dockerfile). Version info: GoReleaser ldflags into `internal/cli` vars, `debug.ReadBuildInfo` fallback for local builds. Local pipeline check: `goreleaser release --snapshot --clean --skip=ko` (no docker in WSL2).
 - Module path: `github.com/islerfab/meridian`.
 - Target image: ko-built on `cgr.dev/chainguard/static` (distroless-style, nonroot), linux/arm64 + amd64, pushed to `ghcr.io/islerfab/meridian`.
