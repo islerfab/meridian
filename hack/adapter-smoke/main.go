@@ -1,12 +1,15 @@
-// Command adapter-smoke live-tests the CalDAV adapter's five-method
-// contract (mer-891) against the meridian-spike calendar on Infomaniak:
+// Command adapter-smoke live-tests an adapter's five-method contract
+// (mer-891 CalDAV, mer-3cc Google) against a real scratch calendar:
 // Create → ListShadows → Update → ListEvents (marker visible) → Delete
 // (twice — idempotency) → ListShadows empty. Throwaway; credentials from
 // .env like hack/spike-expand.
+//
+//	go run ./hack/adapter-smoke -provider caldav|google
 package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -16,26 +19,45 @@ import (
 
 	"github.com/islerfab/meridian/internal/adapter"
 	"github.com/islerfab/meridian/internal/adapter/caldav"
+	"github.com/islerfab/meridian/internal/adapter/google"
 	"github.com/islerfab/meridian/internal/model"
 )
 
 func main() {
+	provider := flag.String("provider", "caldav", "adapter under test: caldav | google")
+	flag.Parse()
 	_ = godotenv.Load()
-	calPath := os.Getenv("MERIDIAN_SPIKE_CALENDAR")
-	if calPath == "" {
-		fatal("MERIDIAN_SPIKE_CALENDAR must be set to the spike calendar path")
+	ctx := context.Background()
+
+	var a adapter.CalendarAdapter
+	var err error
+	switch *provider {
+	case "caldav":
+		calPath := os.Getenv("MERIDIAN_SPIKE_CALENDAR")
+		if calPath == "" {
+			fatal("MERIDIAN_SPIKE_CALENDAR must be set to the spike calendar path")
+		}
+		a, err = caldav.New(caldav.Config{
+			Endpoint:     envOr("MERIDIAN_SPIKE_ENDPOINT", "https://sync.infomaniak.com"),
+			Username:     os.Getenv("MERIDIAN_SPIKE_USER"),
+			Password:     os.Getenv("MERIDIAN_SPIKE_PASS"),
+			CalendarPath: calPath,
+			CalendarID:   "spike/test",
+		}, slog.Default())
+	case "google":
+		a, err = google.New(ctx, google.Config{
+			ClientID:         os.Getenv("MERIDIAN_GOOGLE_CLIENT_ID"),
+			ClientSecret:     os.Getenv("MERIDIAN_GOOGLE_CLIENT_SECRET"),
+			RefreshToken:     os.Getenv("MERIDIAN_GOOGLE_REFRESH_TOKEN"),
+			CalendarID:       "sandbox/google",
+			GoogleCalendarID: os.Getenv("MERIDIAN_GOOGLE_CALENDAR_ID"),
+		}, slog.Default())
+	default:
+		fatal("unknown provider %q", *provider)
 	}
-	a, err := caldav.New(caldav.Config{
-		Endpoint:     envOr("MERIDIAN_SPIKE_ENDPOINT", "https://sync.infomaniak.com"),
-		Username:     os.Getenv("MERIDIAN_SPIKE_USER"),
-		Password:     os.Getenv("MERIDIAN_SPIKE_PASS"),
-		CalendarPath: calPath,
-		CalendarID:   "spike/test",
-	}, slog.Default())
 	if err != nil {
 		fatal("new adapter: %v", err)
 	}
-	ctx := context.Background()
 	window := adapter.Window{Start: time.Now().UTC().Add(-24 * time.Hour), End: time.Now().UTC().Add(90 * 24 * time.Hour)}
 
 	content := model.ShadowContent{
@@ -94,7 +116,7 @@ func main() {
 	fmt.Println("\nRESULT: ADAPTER SMOKE PASS")
 }
 
-func mustShadows(ctx context.Context, a *caldav.Adapter, w adapter.Window, want int) []model.Shadow {
+func mustShadows(ctx context.Context, a adapter.CalendarAdapter, w adapter.Window, want int) []model.Shadow {
 	shadows, err := a.ListShadows(ctx, w)
 	step("ListShadows", err)
 	if len(shadows) != want {
