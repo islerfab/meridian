@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -13,6 +14,7 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"github.com/islerfab/meridian/internal/config"
+	"github.com/islerfab/meridian/internal/obs"
 	"github.com/islerfab/meridian/internal/sync"
 )
 
@@ -34,6 +36,12 @@ func newRunCmd() *cli.Command {
 		Usage: "Start the reconciliation loop",
 		Flags: []cli.Flag{configFlag(),
 			&cli.BoolFlag{Name: "once", Usage: "run a single cycle and exit"},
+			&cli.StringFlag{
+				Name:    "listen",
+				Usage:   "observability listen address (/metrics, /healthz, /readyz)",
+				Value:   "[::]:8080",
+				Sources: cli.EnvVars("MERIDIAN_LISTEN"),
+			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// Dev convenience; a no-op when .env does not exist (in-cluster
@@ -55,9 +63,38 @@ func newRunCmd() *cli.Command {
 				return nil
 			}
 
-			log.Info("meridian starting", "interval", interval.String())
+			srv := obs.New(cmd.String("listen"), prometheus.DefaultGatherer, log)
+			if err := srv.Start(); err != nil {
+				return fmt.Errorf("observability listener: %w", err)
+			}
+			defer func() {
+				shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				_ = srv.Shutdown(shutCtx)
+			}()
+
+			log.Info("meridian starting", "interval", interval.String(), "listen", srv.Addr())
 			ticker := time.NewTicker(interval)
 			defer ticker.Stop()
+
+			// Auth-probe gate (DESIGN.md Decision 6): no cycle runs until
+			// every calendar's credentials verify, so a pod that never became
+			// ready has provably written and deleted nothing.
+			for {
+				if err := engine.ProbeAuth(ctx); err == nil {
+					break
+				}
+				log.Warn("not ready: auth probes failing, retrying next interval")
+				select {
+				case <-ctx.Done():
+					log.Info("meridian stopping")
+					return nil
+				case <-ticker.C:
+				}
+			}
+			srv.SetReady()
+			log.Info("auth probes passed, ready")
+
 			for {
 				engine.RunCycle(ctx)
 				select {
