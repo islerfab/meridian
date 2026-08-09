@@ -23,6 +23,7 @@ func NewRootCmd() *cli.Command {
 			"driven by declarative rules and stateless snapshot reconciliation.",
 		Commands: []*cli.Command{
 			newRunCmd(),
+			newValidateCmd(),
 			newWipeCmd(),
 			newOAuthCmd(),
 			newVersionCmd(),

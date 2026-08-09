@@ -1,0 +1,9 @@
+apiVersion: v2
+name: meridian
+description: Declarative calendar sync — stateless snapshot reconciliation between CalDAV and Google Calendar, k8s-native.
+type: application
+home: https://github.com/islerfab/meridian
+sources:
+  - https://github.com/islerfab/meridian
+version: 0.1.0
+appVersion: "0.1.0"

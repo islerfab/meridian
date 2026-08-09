@@ -48,13 +48,22 @@ tasks:
     cmds:
       - rm -f meridian coverage.out
 
+  helm:
+    desc: Lint and render the Helm chart (both config modes); round-trip the rendered rules.yaml through the strict config loader
+    cmds:
+      - helm lint deploy/meridian -f deploy/meridian/ci/test-values.yaml
+      - helm template meridian deploy/meridian -f deploy/meridian/ci/test-values.yaml > /dev/null
+      - helm template meridian deploy/meridian -f deploy/meridian/ci/test-values.yaml --set existingConfigMap=external-rules > /dev/null
+      - helm template meridian deploy/meridian -f deploy/meridian/ci/test-values.yaml --show-only templates/configmap.yaml | go run ./cmd/meridian validate --from-configmap --config /dev/stdin
+
   ci:
-    desc: Everything CI runs — vet, lint, test, build
+    desc: Everything CI runs — vet, lint, test, build, helm
     deps: [vet]
     cmds:
       - task: lint
       - task: test
       - task: build
+      - task: helm
 
   release:
     desc: Tag the next semver (from conventional commits, via svu) and push the tag — release.yml does the rest
