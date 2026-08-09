@@ -23,7 +23,7 @@ Dedicated throwaway calendars on both providers, never touched by Reclaim. Synth
 - idempotence: steady state = converged cycles (zero ops), every cycle
 - window edges: events entering/leaving the 90-day window, running events at the lookback edge
 - crash safety: kill mid-cycle at arbitrary points → next cycle converges, no duplicates/orphans
-- hand-tamper: edit + delete shadow events manually → overwritten/recreated next cycle (by design)
+- hand-tamper: delete shadow events manually → recreated next cycle; manual *edits* that preserve the marker **persist by design** (Decision 2 marker-trust — see tamper-edit semantics there) and must be reported by the `meridian_shadow_drift` gauge (mer-hn8); remediation = `meridian wipe rule <id>` + next cycle
 
 ## Stage 3 — Production-adjacent soak (in-cluster, real source data, scratch destinations)
 

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
+
 	"github.com/islerfab/meridian/internal/adapter"
 	"github.com/islerfab/meridian/internal/model"
 )
@@ -176,6 +178,56 @@ func TestHashChangeDetectionIgnoresProviderFields(t *testing.T) {
 	e.RunCycle(context.Background())
 	if dst.updates != 1 {
 		t.Errorf("updates=%d, want 1 after real content change", dst.updates)
+	}
+}
+
+// Drift detection (mer-hn8): tampered shadow content is never repaired
+// (see TestHashChangeDetectionIgnoresProviderFields) but must be REPORTED
+// via the shadow-drift gauge, and the gauge must clear when drift heals.
+func TestShadowDriftDetectedNotRepaired(t *testing.T) {
+	src, dst := newFake(), newFake()
+	src.events = []model.Event{
+		srcEvent("a", "Standup", t0.Add(24*time.Hour)),
+		srcEvent("b", "1:1", t0.Add(48*time.Hour)),
+	}
+	e := newTestEngine(t, src, dst, nil)
+	e.RunCycle(context.Background())
+
+	gauge := func() float64 {
+		return testutil.ToFloat64(e.cfg.Metrics.ShadowDrift.WithLabelValues("r1", "dst"))
+	}
+	if g := gauge(); g != 0 {
+		t.Fatalf("drift=%v after clean sync, want 0", g)
+	}
+
+	// Hand-tamper one shadow's content; marker untouched.
+	for id, s := range dst.shadows {
+		s.Content.Title = "tampered by hand"
+		dst.shadows[id] = s
+		break
+	}
+	e.RunCycle(context.Background())
+	if g := gauge(); g != 1 {
+		t.Errorf("drift=%v after tamper, want 1", g)
+	}
+	if dst.updates != 0 {
+		t.Errorf("updates=%d, drift must not be repaired", dst.updates)
+	}
+
+	// Source change overwrites everything; the gauge reflects the state
+	// observed at listing time, so it clears on the cycle AFTER the
+	// overwrite.
+	for i := range src.events {
+		src.events[i].Start = src.events[i].Start.Add(time.Hour)
+		src.events[i].End = src.events[i].End.Add(time.Hour)
+	}
+	e.RunCycle(context.Background())
+	if g := gauge(); g != 1 {
+		t.Errorf("drift=%v during overwrite cycle (pre-op listing), want 1", g)
+	}
+	e.RunCycle(context.Background())
+	if g := gauge(); g != 0 {
+		t.Errorf("drift=%v after overwrite converged, want 0", g)
 	}
 }
 

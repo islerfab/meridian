@@ -269,14 +269,26 @@ func (e *Engine) reconcileRule(ctx context.Context, rule Rule, window adapter.Wi
 			continue
 		}
 		var mine []model.Shadow
+		drifted := 0
 		for _, s := range destShadows.items {
 			// Instance+rule scoping: adapters already filter by instance,
 			// but the engine re-checks — foreign-instance shadows must be
 			// untouchable even with a misconfigured adapter.
 			if s.Marker.Instance == e.cfg.InstanceID && s.Marker.Rule == rule.ID {
 				mine = append(mine, s)
+				// Drift detection, detect-only (mer-hn8): observed content
+				// no longer matches what the marker says we wrote — manual
+				// edit or provider normalization. Never repaired here
+				// (repair on unstable normalization = infinite update loop).
+				if model.ContentHash(s.Content) != s.Marker.Hash {
+					drifted++
+					log.Warn("shadow drift: observed content differs from marker hash",
+						"dest", dest, "src", s.Marker.Src.String(),
+						"markerHash", s.Marker.Hash, "observedHash", model.ContentHash(s.Content))
+				}
 			}
 		}
+		e.cfg.Metrics.ShadowDrift.WithLabelValues(rule.ID, dest).Set(float64(drifted))
 		ops := diff(dest, e.cfg.InstanceID, rule.ID, desired, mine, window)
 		e.detectMassDelete(ctx, rule.ID, dest, ops, len(mine), log)
 		if !e.executeOps(ctx, rule.ID, dest, ops, log) {
