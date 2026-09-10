@@ -13,7 +13,7 @@ import (
 // changing anything below) changes every hash and therefore rewrites every
 // shadow on the next cycle — the format is a persisted contract, treat it
 // like a wire format.
-const hashPrefix = "meridian-hash-v1"
+const hashPrefix = "meridian-hash-v2" // v2: added color field
 
 // ContentHash computes the change-detection hash stored in the marker
 // (DESIGN.md Decision 2): SHA-256 (full hex) over a canonical, versioned
@@ -48,6 +48,7 @@ func canonicalContent(c ShadowContent) string {
 	writeField(&b, "allDay", strconv.FormatBool(c.AllDay))
 	writeField(&b, "transparent", strconv.FormatBool(c.Transparent))
 	writeField(&b, "reminders", strings.Join(reminders, ","))
+	writeField(&b, "color", escapeHashValue(c.Color))
 	return b.String()
 }
 

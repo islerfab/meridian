@@ -96,13 +96,15 @@ type FilterConfig struct {
 // TransformConfig computes shadow content. Unset fields copy the source
 // (faithful mirror, decided 2026-08-08); the literal value "drop" empties a
 // string field; other strings are Go templates (a plain literal is a
-// trivial template).
+// trivial template). Color is the exception: it has no source value to copy
+// (see model.ShadowContent.Color), so unset simply means no color override.
 type TransformConfig struct {
 	Title       *string `yaml:"title"`
 	Description *string `yaml:"description"`
 	Location    *string `yaml:"location"`
 	Transparent *bool   `yaml:"transparent"`
 	Reminders   []int   `yaml:"reminders"`
+	Color       *string `yaml:"color"`
 }
 
 // Drop is the transform keyword that empties a string field.

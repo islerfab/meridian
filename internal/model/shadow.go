@@ -30,6 +30,14 @@ type ShadowContent struct {
 	// shadow (empty = none). Part of desired content: changing a rule's
 	// reminders must re-write its shadows, so it participates in the hash.
 	Reminders []int
+
+	// Color is a destination-literal from rule config (empty = provider
+	// default), not copied from the source event: format is provider-specific
+	// (Google numeric colorId "1".."11"; CalDAV RFC 7986 COLOR keyword, e.g.
+	// "green") and copying one provider's value into the other verbatim would
+	// write garbage, so unlike Title/Description/Location there is no
+	// copy-source default — same rationale as Reminders.
+	Color string
 }
 
 // Shadow is one meridian-owned event on a destination calendar: desired (or

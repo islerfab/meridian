@@ -189,6 +189,8 @@ type compiledTransform struct {
 	dropTitle, dropDesc, dropLoc bool
 	transparent                  *bool
 	reminders                    []int
+	color                        *template.Template // nil = no color override (no source to copy)
+	dropColor                    bool
 }
 
 func compileTransform(rc RuleConfig) (func(model.Event) model.ShadowContent, error) {
@@ -206,6 +208,9 @@ func compileTransform(rc RuleConfig) (func(model.Event) model.ShadowContent, err
 		}
 		ct.transparent = tc.Transparent
 		ct.reminders = tc.Reminders
+		if ct.color, ct.dropColor, err = compileField("color", tc.Color); err != nil {
+			return nil, err
+		}
 	}
 	return ct.apply, nil
 }
@@ -253,6 +258,7 @@ func (ct compiledTransform) apply(ev model.Event) model.ShadowContent {
 		Description: stringField(ev.Description, ct.description, ct.dropDesc, tctx),
 		Location:    stringField(ev.Location, ct.location, ct.dropLoc, tctx),
 		Reminders:   ct.reminders,
+		Color:       colorField(ct.color, ct.dropColor, tctx),
 	}
 	if ct.transparent != nil {
 		content.Transparent = *ct.transparent
@@ -276,6 +282,20 @@ func stringField(source string, tmpl *template.Template, drop bool, tctx Templat
 		}
 		return b.String()
 	}
+}
+
+// colorField has no source to fall back to (unlike stringField): unset or
+// dropped both mean "no color override".
+func colorField(tmpl *template.Template, drop bool, tctx TemplateContext) string {
+	if drop || tmpl == nil {
+		return ""
+	}
+	var b strings.Builder
+	if err := tmpl.Execute(&b, tctx); err != nil {
+		slog.Warn("transform template failed, dropping color", "err", err)
+		return ""
+	}
+	return b.String()
 }
 
 // --- adapters & notifier ---------------------------------------------------

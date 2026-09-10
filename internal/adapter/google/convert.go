@@ -100,6 +100,7 @@ func shadowFromGoogle(item *calendar.Event, calendarID string) (model.Shadow, er
 		End:         end,
 		AllDay:      allDay,
 		Transparent: item.Transparency == "transparent",
+		Color:       item.ColorId,
 	}
 	if item.Reminders != nil {
 		for _, o := range item.Reminders.Overrides {
@@ -123,6 +124,7 @@ func googleFromShadow(shadow model.Shadow) *calendar.Event {
 		Summary:     c.Title,
 		Description: c.Description,
 		Location:    c.Location,
+		ColorId:     c.Color,
 		Start:       toEventDateTime(c.Start, c.AllDay),
 		End:         toEventDateTime(c.End, c.AllDay),
 		ExtendedProperties: &calendar.EventExtendedProperties{

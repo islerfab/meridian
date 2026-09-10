@@ -21,7 +21,7 @@ func baseContent() ShadowContent {
 // The canonical serialization is a persisted contract: this golden value
 // must only ever change with a deliberate hashPrefix version bump.
 func TestContentHashGolden(t *testing.T) {
-	const golden = "63680141192a6a3a143c125673860b92e43a7998837b9cf4a765d4189dd32722"
+	const golden = "b6ecb466daeb5611cde42b0b667ba0f0532b1d9b5bbf1d80a565fb395f47c5cc"
 	if got := ContentHash(baseContent()); got != golden {
 		t.Errorf("golden hash changed: got %s — if this is deliberate, bump hashPrefix and update the golden", got)
 	}
@@ -64,6 +64,7 @@ func TestContentHashFieldSensitivity(t *testing.T) {
 		"allDay":      func(c *ShadowContent) { c.AllDay = true },
 		"transparent": func(c *ShadowContent) { c.Transparent = true },
 		"reminders":   func(c *ShadowContent) { c.Reminders = []int{15} },
+		"color":       func(c *ShadowContent) { c.Color = "green" },
 	}
 	base := ContentHash(baseContent())
 	for name, mutate := range mutations {

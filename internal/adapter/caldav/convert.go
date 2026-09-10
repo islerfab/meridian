@@ -11,6 +11,11 @@ import (
 	"github.com/islerfab/meridian/internal/model"
 )
 
+// propColor is RFC 7986's COLOR property (CSS3 extended color keyword, e.g.
+// "green"). go-ical has no named constant for it; the property name is a
+// plain string like any other iCalendar property.
+const propColor = "COLOR"
+
 // eventFromComponent normalizes one (expanded) VEVENT into the model.
 // Server-expanded instances arrive with UTC DATE-TIME values and a
 // RECURRENCE-ID on every instance (verified against sabre/dav 4.3.1);
@@ -74,6 +79,7 @@ func contentFromComponent(comp *ical.Component) (model.ShadowContent, error) {
 	if transp, _ := comp.Props.Text(ical.PropTransparency); strings.EqualFold(transp, "TRANSPARENT") {
 		c.Transparent = true
 	}
+	c.Color, _ = comp.Props.Text(propColor)
 	for _, child := range comp.Children {
 		if child.Name != ical.CompAlarm {
 			continue
@@ -196,6 +202,9 @@ func buildShadowCalendar(uid string, shadow model.Shadow) *ical.Calendar {
 	}
 	if c.Transparent {
 		set(ical.PropTransparency, "TRANSPARENT")
+	}
+	if c.Color != "" {
+		set(propColor, c.Color)
 	}
 	for key, value := range shadow.Marker.Properties(false) {
 		set(key, value)
