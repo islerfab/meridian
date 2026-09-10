@@ -78,3 +78,18 @@ func (a *Account) Discover(ctx context.Context) ([]adapter.DiscoveredCalendar, e
 	}
 	return out, nil
 }
+
+// ResolveCalendarID returns a calendar's canonical provider ID. Config may
+// reference a calendar by alias (e.g. "primary"), but CalendarList.List
+// (used by Discover) never returns that alias for the primary calendar —
+// only its real ID (the account's email address). Callers that need to
+// recognize a configured calendar among discovered ones (the sweep) must
+// key on the resolved ID, not the alias, or the primary calendar never
+// matches and its own shadows are swept as orphans every cycle.
+func (a *Account) ResolveCalendarID(ctx context.Context, id string) (string, error) {
+	cal, err := a.svc.Calendars.Get(id).Fields("id").Context(ctx).Do()
+	if err != nil {
+		return "", fmt.Errorf("account %s: resolve calendar %s: %w: %w", a.cfg.AccountName, id, err, classify(err))
+	}
+	return cal.Id, nil
+}

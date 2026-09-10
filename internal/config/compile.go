@@ -399,7 +399,15 @@ func BuildSweepers(ctx context.Context, cfg *Config, log *slog.Logger) (map[stri
 			}
 			sweepers[a.Name] = sw
 			for _, cal := range a.Calendars {
-				keys[a.Name][cal.ID] = a.Name + "/" + cal.Name
+				// Resolve aliases (e.g. "primary") to the real provider ID:
+				// Discover() only ever returns real IDs, so keying on the
+				// alias would make the sweep never recognize this calendar
+				// as configured and delete its own shadows there as orphans.
+				canonicalID, err := sw.ResolveCalendarID(ctx, cal.ID)
+				if err != nil {
+					return nil, nil, err
+				}
+				keys[a.Name][canonicalID] = a.Name + "/" + cal.Name
 			}
 		}
 	}
