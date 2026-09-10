@@ -83,7 +83,19 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*Adapter, error) {
 }
 
 // ListEvents fetches server-expanded instances overlapping the window.
-// Cancelled events (tombstones) are skipped, never a cycle failure.
+// Cancelled events (tombstones) are skipped, never a cycle failure. So are
+// eventType=="birthday" items: Google auto-injects contacts' birthdays
+// directly into the primary calendar's events feed, and they are never
+// something a sync rule should mirror by default.
+//
+// To sync birthdays explicitly instead, configure a calendar with
+// id: addressbook#contacts@group.v.calendar.google.com — the dedicated
+// Birthdays calendar. It's a real, directly addressable calendar resource
+// (confirmed via Calendars.Get and Events.List) but never appears in
+// CalendarList (not even with showHidden), so the account-wide sweep's
+// Discover() can never auto-target it — a rule must name it explicitly.
+// Events fetched from it carry eventType=="default", not "birthday", so
+// this skip never excludes them there.
 func (a *Adapter) ListEvents(ctx context.Context, window adapter.Window) ([]model.Event, error) {
 	var events []model.Event
 	call := a.svc.Events.List(a.cfg.GoogleCalendarID).
@@ -93,7 +105,7 @@ func (a *Adapter) ListEvents(ctx context.Context, window adapter.Window) ([]mode
 		MaxResults(2500)
 	err := call.Pages(ctx, func(page *calendar.Events) error {
 		for _, item := range page.Items {
-			if item.Status == "cancelled" {
+			if item.Status == "cancelled" || item.EventType == "birthday" {
 				continue
 			}
 			ev, err := eventFromGoogle(item, a.cfg.CalendarID)
