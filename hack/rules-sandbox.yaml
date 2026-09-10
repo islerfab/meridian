@@ -29,3 +29,9 @@ rules:
     transform:
       title: "[spike] {{ .Title }}"
       transparent: false
+  - id: sandbox-mirror
+    from: sandbox/main
+    to: [spike/main]
+    transform:
+      title: "[sandbox] {{ .Title }}"
+      transparent: false

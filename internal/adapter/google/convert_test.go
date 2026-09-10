@@ -145,6 +145,10 @@ func TestShadowRoundTrip(t *testing.T) {
 	item := googleFromShadow(shadow)
 	item.Id = "created-id" // assigned server-side
 
+	if item.Start.TimeZone != "UTC" || item.End.TimeZone != "UTC" {
+		t.Errorf("timed event must pin TimeZone to UTC to avoid Google's calendar-default-TZ DST-fold ambiguity: start=%q end=%q", item.Start.TimeZone, item.End.TimeZone)
+	}
+
 	got, err := shadowFromGoogle(item, "work/primary")
 	if err != nil {
 		t.Fatal(err)

@@ -169,7 +169,7 @@ func toEventDateTime(t time.Time, allDay bool) *calendar.EventDateTime {
 	if allDay {
 		return &calendar.EventDateTime{Date: t.UTC().Format("2006-01-02")}
 	}
-	return &calendar.EventDateTime{DateTime: t.UTC().Format(time.RFC3339)}
+	return &calendar.EventDateTime{DateTime: t.UTC().Format(time.RFC3339), TimeZone: "UTC"}
 }
 
 func firstNonEmpty(values ...string) string {
