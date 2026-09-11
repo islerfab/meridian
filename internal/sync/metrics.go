@@ -7,14 +7,15 @@ import (
 // Metrics is the engine's Prometheus surface (DESIGN.md Decision 6). Guard
 // triggers must be loud — silent guards defeat their purpose.
 type Metrics struct {
-	OpsTotal            *prometheus.CounterVec // rule, op
-	OpErrorsTotal       *prometheus.CounterVec // rule, op, class
-	FetchErrorsTotal    *prometheus.CounterVec // calendar, class
-	GuardTriggersTotal  *prometheus.CounterVec // rule, guard
-	CycleDuration       prometheus.Histogram
-	LastSuccessfulCycle *prometheus.GaugeVec // rule
-	NotifyFailuresTotal prometheus.Counter
-	ShadowDrift         *prometheus.GaugeVec // rule, dest
+	OpsTotal                *prometheus.CounterVec // rule, op
+	OpErrorsTotal           *prometheus.CounterVec // rule, op, class
+	FetchErrorsTotal        *prometheus.CounterVec // calendar, class
+	GuardTriggersTotal      *prometheus.CounterVec // rule, guard
+	CycleDuration           prometheus.Histogram
+	LastSuccessfulCycle     *prometheus.GaugeVec // rule
+	NotifyFailuresTotal     prometheus.Counter
+	ShadowDrift             *prometheus.GaugeVec // rule, dest
+	ShadowDriftUnrepairable *prometheus.GaugeVec // rule, dest
 }
 
 // NewMetrics builds and registers the engine collectors.
@@ -51,13 +52,17 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 		}),
 		ShadowDrift: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "meridian_shadow_drift",
-			Help: "Shadows whose observed content hash differs from the marker hash (manual edits or provider normalization; detect-only, mer-hn8).",
+			Help: "Shadows whose observed content hash differs from the marker hash (manual edits or provider normalization). Includes drift that gets auto-repaired this cycle (mer-t75) — see meridian_shadow_drift_unrepairable for the alertable subset.",
+		}, []string{"rule", "dest"}),
+		ShadowDriftUnrepairable: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "meridian_shadow_drift_unrepairable",
+			Help: "Shadows still drifted after exhausting bounded repair retries (mer-t75) — persistent hand-tamper or unstable provider normalization. The alertable subset of meridian_shadow_drift.",
 		}, []string{"rule", "dest"}),
 	}
 	if reg != nil {
 		reg.MustRegister(m.OpsTotal, m.OpErrorsTotal, m.FetchErrorsTotal,
 			m.GuardTriggersTotal, m.CycleDuration, m.LastSuccessfulCycle,
-			m.NotifyFailuresTotal, m.ShadowDrift)
+			m.NotifyFailuresTotal, m.ShadowDrift, m.ShadowDriftUnrepairable)
 	}
 	return m
 }

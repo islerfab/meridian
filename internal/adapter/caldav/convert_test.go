@@ -126,7 +126,8 @@ X-MERIDIAN-SRC:cal|uid|
 X-MERIDIAN-RULE:some-rule
 X-MERIDIAN-HASH:deadbeef
 X-MERIDIAN-INSTANCE:inst-test
-X-MERIDIAN-V:1
+X-MERIDIAN-REPAIR:0
+X-MERIDIAN-V:2
 END:VEVENT`)
 	ev, err := eventFromComponent(comp, "cal")
 	if err != nil {

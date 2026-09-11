@@ -17,6 +17,12 @@ import (
 	"github.com/islerfab/meridian/internal/notify"
 )
 
+// maxRepairTries bounds drift-repair attempts (mer-t75) per marker Hash.
+// Not configurable: a constant is enough retry budget to absorb one cycle
+// of provider read-after-write lag without risking an infinite update loop
+// against a stable-but-wrong provider normalization (the mer-jge class).
+const maxRepairTries = 2
+
 // Config assembles an Engine.
 type Config struct {
 	// InstanceID is this meridian instance's identity (required, not
@@ -250,7 +256,11 @@ func (e *Engine) reconcileRule(ctx context.Context, rule Rule, window adapter.Wi
 	for _, ev := range src.items {
 		if ev.Marker != nil {
 			e.cfg.Metrics.GuardTriggersTotal.WithLabelValues(rule.ID, "zombie").Inc()
-			log.Warn("guard: skipping meridian-owned source event",
+			// DEBUG, not WARN: this fires every cycle for every mirrored
+			// shadow in any bidirectional rule pair — routine, not actionable.
+			// The metric (kept at Inc above) is the loud signal if one is
+			// ever needed; the log would otherwise drown everything else.
+			log.Debug("guard: skipping meridian-owned source event",
 				"guard", "zombie", "src", ev.Ref.String(), "ownerRule", ev.Marker.Rule)
 			continue
 		}
@@ -269,27 +279,55 @@ func (e *Engine) reconcileRule(ctx context.Context, rule Rule, window adapter.Wi
 			continue
 		}
 		var mine []model.Shadow
-		drifted := 0
+		var repairOps []Op
+		drifted, unrepairable := 0, 0
 		for _, s := range destShadows.items {
 			// Instance+rule scoping: adapters already filter by instance,
 			// but the engine re-checks — foreign-instance shadows must be
 			// untouchable even with a misconfigured adapter.
-			if s.Marker.Instance == e.cfg.InstanceID && s.Marker.Rule == rule.ID {
-				mine = append(mine, s)
-				// Drift detection, detect-only (mer-hn8): observed content
-				// no longer matches what the marker says we wrote — manual
-				// edit or provider normalization. Never repaired here
-				// (repair on unstable normalization = infinite update loop).
-				if model.ContentHash(s.Content) != s.Marker.Hash {
-					drifted++
-					log.Warn("shadow drift: observed content differs from marker hash",
-						"dest", dest, "src", s.Marker.Src.String(),
-						"markerHash", s.Marker.Hash, "observedHash", model.ContentHash(s.Content))
-				}
+			if s.Marker.Instance != e.cfg.InstanceID || s.Marker.Rule != rule.ID {
+				continue
+			}
+			mine = append(mine, s)
+			if model.ContentHash(s.Content) == s.Marker.Hash {
+				continue // no drift
+			}
+			drifted++
+			// Drift: observed content no longer matches what the marker
+			// says we wrote — manual edit or provider normalization,
+			// indistinguishable from here. Bounded repair (mer-t75,
+			// supersedes detect-only mer-hn8): re-write the already-desired
+			// content up to maxRepairTries times, stamping the attempt into
+			// the new marker. A mismatch that survives every attempt is
+			// either persistent hand-tamper or unstable provider
+			// normalization (the mer-jge DST-fold class of bug) — either
+			// way, retrying forever would loop, so it freezes into
+			// detect-only and becomes the alertable metric below.
+			content, stillDesired := desired[s.Marker.Src]
+			switch {
+			case !stillDesired:
+				// src no longer desired; diff()'s orphan GC below handles
+				// this shadow, not repair.
+			case s.Marker.RepairTries >= maxRepairTries:
+				unrepairable++
+				log.Warn("shadow drift: unrepairable after retries",
+					"dest", dest, "src", s.Marker.Src.String(), "tries", s.Marker.RepairTries,
+					"markerHash", s.Marker.Hash, "observedHash", model.ContentHash(s.Content))
+			default:
+				m := model.NewMarker(e.cfg.InstanceID, s.Marker.Src, rule.ID, content)
+				m.RepairTries = s.Marker.RepairTries + 1
+				repairOps = append(repairOps, Op{
+					Kind:   OpUpdate,
+					Dest:   dest,
+					Shadow: model.Shadow{Ref: s.Ref, Content: content, Marker: m},
+					Reason: "drift-repair",
+				})
 			}
 		}
 		e.cfg.Metrics.ShadowDrift.WithLabelValues(rule.ID, dest).Set(float64(drifted))
+		e.cfg.Metrics.ShadowDriftUnrepairable.WithLabelValues(rule.ID, dest).Set(float64(unrepairable))
 		ops := diff(dest, e.cfg.InstanceID, rule.ID, desired, mine, window)
+		ops = append(ops, repairOps...)
 		e.detectMassDelete(ctx, rule.ID, dest, ops, len(mine), log)
 		if !e.executeOps(ctx, rule.ID, dest, ops, log) {
 			ruleOK = false

@@ -61,6 +61,7 @@ func testMarker() Marker {
 
 func TestMarkerRoundTrip(t *testing.T) {
 	m := testMarker()
+	m.RepairTries = 2 // non-zero must survive the round trip too
 	for _, google := range []bool{true, false} {
 		props := m.Properties(google)
 		got, found, err := ParseMarker(props, google)
@@ -76,16 +77,19 @@ func TestMarkerRoundTrip(t *testing.T) {
 func TestMarkerPropertyKeys(t *testing.T) {
 	m := testMarker()
 	gp := m.Properties(true)
-	for _, k := range []string{GoogleKeySrc, GoogleKeyRule, GoogleKeyHash, GoogleKeyInstance, GoogleKeyV} {
+	for _, k := range []string{GoogleKeySrc, GoogleKeyRule, GoogleKeyHash, GoogleKeyInstance, GoogleKeyRepair, GoogleKeyV} {
 		if _, ok := gp[k]; !ok {
 			t.Errorf("google properties missing key %q (got %v)", k, gp)
 		}
 	}
-	if gp[GoogleKeyV] != "1" {
-		t.Errorf("meridian.v = %q, want \"1\"", gp[GoogleKeyV])
+	if gp[GoogleKeyV] != "2" {
+		t.Errorf("meridian.v = %q, want \"2\"", gp[GoogleKeyV])
+	}
+	if gp[GoogleKeyRepair] != "0" {
+		t.Errorf("meridian.repair = %q, want \"0\"", gp[GoogleKeyRepair])
 	}
 	cp := m.Properties(false)
-	for _, k := range []string{CalDAVPropSrc, CalDAVPropRule, CalDAVPropHash, CalDAVPropInstance, CalDAVPropV} {
+	for _, k := range []string{CalDAVPropSrc, CalDAVPropRule, CalDAVPropHash, CalDAVPropInstance, CalDAVPropRepair, CalDAVPropV} {
 		if _, ok := cp[k]; !ok {
 			t.Errorf("caldav properties missing key %q (got %v)", k, cp)
 		}
@@ -116,13 +120,15 @@ func TestParseMarkerMalformed(t *testing.T) {
 	}
 	cases := map[string]map[string]string{
 		"missing hash":        mutate(func(p map[string]string) { delete(p, GoogleKeyHash) }),
-		"only version":        {GoogleKeyV: "1"},
+		"only version":        {GoogleKeyV: "2"},
 		"non-numeric version": mutate(func(p map[string]string) { p[GoogleKeyV] = "one" }),
-		"future version":      mutate(func(p map[string]string) { p[GoogleKeyV] = "2" }),
+		"future version":      mutate(func(p map[string]string) { p[GoogleKeyV] = "3" }),
 		"malformed src":       mutate(func(p map[string]string) { p[GoogleKeySrc] = "no-pipes-here" }),
 		"empty rule":          mutate(func(p map[string]string) { p[GoogleKeyRule] = "" }),
 		"empty instance":      mutate(func(p map[string]string) { p[GoogleKeyInstance] = "" }),
 		"missing instance":    mutate(func(p map[string]string) { delete(p, GoogleKeyInstance) }),
+		"missing repair":      mutate(func(p map[string]string) { delete(p, GoogleKeyRepair) }),
+		"non-numeric repair":  mutate(func(p map[string]string) { p[GoogleKeyRepair] = "one" }),
 	}
 	for name, props := range cases {
 		_, found, err := ParseMarker(props, true)

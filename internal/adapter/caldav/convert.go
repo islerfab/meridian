@@ -148,7 +148,7 @@ func stripMailto(s string) string {
 // parseComponentMarker extracts X-MERIDIAN-* props into the shared codec.
 func parseComponentMarker(comp *ical.Component) (model.Marker, bool, error) {
 	props := map[string]string{}
-	for _, key := range []string{model.CalDAVPropSrc, model.CalDAVPropRule, model.CalDAVPropHash, model.CalDAVPropInstance, model.CalDAVPropV} {
+	for _, key := range []string{model.CalDAVPropSrc, model.CalDAVPropRule, model.CalDAVPropHash, model.CalDAVPropInstance, model.CalDAVPropRepair, model.CalDAVPropV} {
 		if p := comp.Props.Get(key); p != nil {
 			props[key] = p.Value
 		}

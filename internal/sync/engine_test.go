@@ -153,9 +153,12 @@ func TestConvergeAndIdempotency(t *testing.T) {
 	}
 }
 
-// Guard 3: change detection is hash-vs-marker only. Provider-side content
-// normalization (title mangled on the destination) must NOT trigger an
-// update while the marker hash still matches the desired content.
+// Guard 3: change detection is hash-vs-marker only, not hash-vs-observed.
+// Provider-side content normalization (title mangled on the destination)
+// is drift, and is healed via the bounded repair path (mer-t75) — the
+// repair op carries reason="drift-repair", never diff()'s own
+// "content-changed" reason. One repair attempt heals it; without fresh
+// tampering the next cycle is quiet.
 func TestHashChangeDetectionIgnoresProviderFields(t *testing.T) {
 	src, dst := newFake(), newFake()
 	src.events = []model.Event{srcEvent("a", "Standup", t0.Add(24*time.Hour))}
@@ -168,66 +171,114 @@ func TestHashChangeDetectionIgnoresProviderFields(t *testing.T) {
 		dst.shadows[id] = s
 	}
 	e.RunCycle(context.Background())
-	if dst.updates != 0 {
-		t.Error("provider field drift must not trigger updates (hash-vs-marker only)")
+	if dst.updates != 1 {
+		t.Fatalf("updates=%d, want 1 (drift repair, not diff()'s content-changed path)", dst.updates)
+	}
+	for _, s := range dst.shadows {
+		if s.Content.Title != "Busy" {
+			t.Errorf("repair did not restore desired content: %+v", s.Content)
+		}
 	}
 
-	// A real source change must.
+	// No fresh tampering: the repair already holds, cycle is quiet.
+	e.RunCycle(context.Background())
+	if dst.updates != 1 {
+		t.Errorf("updates=%d, want still 1 (repair held, no further action)", dst.updates)
+	}
+
+	// A real source change must still update.
 	src.events[0].Start = src.events[0].Start.Add(30 * time.Minute)
 	src.events[0].End = src.events[0].End.Add(30 * time.Minute)
 	e.RunCycle(context.Background())
-	if dst.updates != 1 {
-		t.Errorf("updates=%d, want 1 after real content change", dst.updates)
+	if dst.updates != 2 {
+		t.Errorf("updates=%d, want 2 after real content change", dst.updates)
 	}
 }
 
-// Drift detection (mer-hn8): tampered shadow content is never repaired
-// (see TestHashChangeDetectionIgnoresProviderFields) but must be REPORTED
-// via the shadow-drift gauge, and the gauge must clear when drift heals.
-func TestShadowDriftDetectedNotRepaired(t *testing.T) {
+// Drift detection + bounded repair (mer-hn8, extended mer-t75): a
+// hand-tampered shadow is repaired from the already-desired content, up to
+// maxRepairTries times. If it's STILL drifted after the budget is
+// exhausted, repair stops and the drift becomes visible via the
+// unrepairable metric instead of retrying forever (the mer-jge DST-fold
+// class of bug proved unconditional retry unsafe). A real source change
+// bypasses the budget entirely — it's diff()'s content-changed path, which
+// always builds a fresh marker with RepairTries reset to 0.
+func TestShadowDriftBoundedRepair(t *testing.T) {
 	src, dst := newFake(), newFake()
-	src.events = []model.Event{
-		srcEvent("a", "Standup", t0.Add(24*time.Hour)),
-		srcEvent("b", "1:1", t0.Add(48*time.Hour)),
-	}
+	src.events = []model.Event{srcEvent("a", "Standup", t0.Add(24*time.Hour))}
 	e := newTestEngine(t, src, dst, nil)
 	e.RunCycle(context.Background())
 
-	gauge := func() float64 {
+	driftGauge := func() float64 {
 		return testutil.ToFloat64(e.cfg.Metrics.ShadowDrift.WithLabelValues("r1", "dst"))
 	}
-	if g := gauge(); g != 0 {
+	unrepairableGauge := func() float64 {
+		return testutil.ToFloat64(e.cfg.Metrics.ShadowDriftUnrepairable.WithLabelValues("r1", "dst"))
+	}
+	tamper := func() {
+		for id, s := range dst.shadows {
+			s.Content.Title = "tampered by hand"
+			dst.shadows[id] = s
+		}
+	}
+
+	if g := driftGauge(); g != 0 {
 		t.Fatalf("drift=%v after clean sync, want 0", g)
 	}
 
-	// Hand-tamper one shadow's content; marker untouched.
-	for id, s := range dst.shadows {
-		s.Content.Title = "tampered by hand"
-		dst.shadows[id] = s
-		break
-	}
+	// Attempt 1 of maxRepairTries(=2): repaired.
+	tamper()
 	e.RunCycle(context.Background())
-	if g := gauge(); g != 1 {
-		t.Errorf("drift=%v after tamper, want 1", g)
+	if dst.updates != 1 {
+		t.Fatalf("updates=%d, want 1 (first drift repaired)", dst.updates)
 	}
-	if dst.updates != 0 {
-		t.Errorf("updates=%d, drift must not be repaired", dst.updates)
+	if g := driftGauge(); g != 1 {
+		t.Errorf("drift=%v at repair time, want 1", g)
+	}
+	if g := unrepairableGauge(); g != 0 {
+		t.Errorf("unrepairable=%v, want 0 (still within retry budget)", g)
+	}
+	for _, s := range dst.shadows {
+		if s.Marker.RepairTries != 1 {
+			t.Errorf("RepairTries=%d, want 1 after first repair attempt", s.Marker.RepairTries)
+		}
 	}
 
-	// Source change overwrites everything; the gauge reflects the state
-	// observed at listing time, so it clears on the cycle AFTER the
-	// overwrite.
-	for i := range src.events {
-		src.events[i].Start = src.events[i].Start.Add(time.Hour)
-		src.events[i].End = src.events[i].End.Add(time.Hour)
+	// Simulate the repair not holding (e.g. a stable provider
+	// normalization, like mer-jge) by tampering again before re-listing.
+	tamper()
+	e.RunCycle(context.Background()) // attempt 2 of 2
+	if dst.updates != 2 {
+		t.Fatalf("updates=%d, want 2 (second attempt within budget)", dst.updates)
 	}
+
+	tamper()
+	e.RunCycle(context.Background()) // budget exhausted: no further repair
+	if dst.updates != 2 {
+		t.Errorf("updates=%d, want still 2 (retries exhausted, must not repair again)", dst.updates)
+	}
+	if g := unrepairableGauge(); g != 1 {
+		t.Errorf("unrepairable=%v, want 1 after exhausting retries", g)
+	}
+
+	// A real source change bypasses the repair budget entirely.
+	src.events[0].Start = src.events[0].Start.Add(time.Hour)
+	src.events[0].End = src.events[0].End.Add(time.Hour)
 	e.RunCycle(context.Background())
-	if g := gauge(); g != 1 {
+	if g := driftGauge(); g != 1 {
 		t.Errorf("drift=%v during overwrite cycle (pre-op listing), want 1", g)
 	}
 	e.RunCycle(context.Background())
-	if g := gauge(); g != 0 {
+	if g := driftGauge(); g != 0 {
 		t.Errorf("drift=%v after overwrite converged, want 0", g)
+	}
+	if g := unrepairableGauge(); g != 0 {
+		t.Errorf("unrepairable=%v after real change converged, want 0", g)
+	}
+	for _, s := range dst.shadows {
+		if s.Marker.RepairTries != 0 {
+			t.Errorf("RepairTries=%d, want reset to 0 after a real content change", s.Marker.RepairTries)
+		}
 	}
 }
 
