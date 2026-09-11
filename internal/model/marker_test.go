@@ -108,6 +108,49 @@ func TestParseMarkerForeignEvent(t *testing.T) {
 	}
 }
 
+// Backward-compatible reads (mer-dtd, DESIGN.md Decision 2): a v1 marker
+// never had the repair key at all — not missing, predates the concept —
+// and must still decode cleanly, with RepairTries defaulting to the
+// historically correct 0.
+func TestParseMarkerV1BackwardCompat(t *testing.T) {
+	props := map[string]string{
+		GoogleKeySrc:      "cal|uid|",
+		GoogleKeyRule:     "some-rule",
+		GoogleKeyHash:     "deadbeef",
+		GoogleKeyInstance: "inst-test",
+		GoogleKeyV:        "1",
+	}
+	got, found, err := ParseMarker(props, true)
+	if err != nil || !found {
+		t.Fatalf("v1 marker: found=%t err=%v", found, err)
+	}
+	want := Marker{
+		Src:      EventRef{Calendar: "cal", UID: "uid"},
+		Rule:     "some-rule",
+		Hash:     "deadbeef",
+		Instance: "inst-test",
+		V:        1,
+	}
+	if got != want {
+		t.Errorf("v1 marker = %+v, want %+v", got, want)
+	}
+}
+
+// A version this binary predates (or no longer supports) must still error
+// loudly rather than silently misinterpreting an unknown shape — the
+// mer-gih wipe/migrate fallback is for exactly this case.
+func TestParseMarkerUnsupportedVersion(t *testing.T) {
+	for _, v := range []string{"0", "3", "99"} {
+		props := map[string]string{
+			GoogleKeySrc: "cal|uid|", GoogleKeyRule: "r", GoogleKeyHash: "h",
+			GoogleKeyInstance: "i", GoogleKeyV: v,
+		}
+		if _, found, err := ParseMarker(props, true); !found || err == nil {
+			t.Errorf("version %s: found=%t err=%v, want found=true with error", v, found, err)
+		}
+	}
+}
+
 func TestParseMarkerMalformed(t *testing.T) {
 	valid := testMarker().Properties(true)
 	mutate := func(fn func(map[string]string)) map[string]string {

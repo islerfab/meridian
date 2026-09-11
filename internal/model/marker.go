@@ -7,9 +7,13 @@ import (
 )
 
 // MarkerVersion is the current marker format version, stored in
-// meridian.v / X-MERIDIAN-V. Bumped to 2 for RepairTries (mer-t75) while
-// pre-beta — no migration path needed, mer-gih resets to 1 and wipes all
-// dev/soak shadows before shipping.
+// meridian.v / X-MERIDIAN-V. ParseMarker accepts this version and every
+// older one it still knows how to decode (mer-dtd, DESIGN.md Decision 2:
+// backward-compatible reads, forward-only writes) — a version bump alone
+// must never make existing shadows invisible to the engine. NewMarker
+// always stamps the current version; a version whose old shape can no
+// longer be decoded into the current Marker at all is the one case that
+// needs a real migration or a wipe, not silently handled here.
 const MarkerVersion = 2
 
 // Property keys for the marker on each protocol (DESIGN.md Decision 2).
@@ -113,6 +117,17 @@ func (m Marker) Properties(google bool) map[string]string {
 // the event is foreign and must never be touched. A present-but-malformed
 // marker returns an error; callers surface it loudly rather than silently
 // treating an owned-looking event as foreign.
+//
+// Backward-compatible reads, forward-only writes (mer-dtd, DESIGN.md
+// Decision 2): every marker version this binary still knows how to decode
+// is handled below via an explicit per-version case — deliberately not a
+// generic schema-evolution framework, since format changes should be rare.
+// src/rule/hash/instance/v are the version-independent core, present in
+// every version so far; version-gated fields (repair, added in v2) are
+// validated inside their version's case, with older versions defaulting
+// them to their historically-correct value rather than treating absence as
+// malformed. Properties/NewMarker always write the current MarkerVersion —
+// nothing here ever produces an old-format marker.
 func ParseMarker(props map[string]string, google bool) (m Marker, found bool, err error) {
 	srcKey, ruleKey, hashKey, instanceKey, repairKey, vKey := keysFor(google)
 	srcRaw, srcOK := props[srcKey]
@@ -124,19 +139,12 @@ func ParseMarker(props map[string]string, google bool) (m Marker, found bool, er
 	if !srcOK && !ruleOK && !hashOK && !instanceOK && !repairOK && !vOK {
 		return Marker{}, false, nil
 	}
-	if !srcOK || !ruleOK || !hashOK || !instanceOK || !repairOK || !vOK {
-		return Marker{}, true, fmt.Errorf("marker incomplete: have src=%t rule=%t hash=%t instance=%t repair=%t v=%t", srcOK, ruleOK, hashOK, instanceOK, repairOK, vOK)
+	if !srcOK || !ruleOK || !hashOK || !instanceOK || !vOK {
+		return Marker{}, true, fmt.Errorf("marker incomplete: have src=%t rule=%t hash=%t instance=%t v=%t", srcOK, ruleOK, hashOK, instanceOK, vOK)
 	}
 	v, err := strconv.Atoi(vRaw)
 	if err != nil {
 		return Marker{}, true, fmt.Errorf("marker version %q: %w", vRaw, err)
-	}
-	if v != MarkerVersion {
-		return Marker{}, true, fmt.Errorf("marker version %d not supported (current %d)", v, MarkerVersion)
-	}
-	repairTries, err := strconv.Atoi(repairRaw)
-	if err != nil {
-		return Marker{}, true, fmt.Errorf("marker repair count %q: %w", repairRaw, err)
 	}
 	src, err := ParseEventRef(srcRaw)
 	if err != nil {
@@ -145,6 +153,24 @@ func ParseMarker(props map[string]string, google bool) (m Marker, found bool, er
 	if rule == "" || hash == "" || instance == "" {
 		return Marker{}, true, fmt.Errorf("marker: empty rule, hash, or instance")
 	}
+
+	var repairTries int
+	switch v {
+	case 1:
+		// Pre-repair format: the key never existed, so "never attempted"
+		// (0) is the historically correct value, not a placeholder.
+	case 2:
+		if !repairOK {
+			return Marker{}, true, fmt.Errorf("marker incomplete: v2 requires repair, have repair=%t", repairOK)
+		}
+		repairTries, err = strconv.Atoi(repairRaw)
+		if err != nil {
+			return Marker{}, true, fmt.Errorf("marker repair count %q: %w", repairRaw, err)
+		}
+	default:
+		return Marker{}, true, fmt.Errorf("marker version %d not supported (recognize 1-%d)", v, MarkerVersion)
+	}
+
 	return Marker{Src: src, Rule: rule, Hash: hash, Instance: instance, RepairTries: repairTries, V: v}, true, nil
 }
 

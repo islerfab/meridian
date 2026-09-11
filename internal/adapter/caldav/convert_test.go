@@ -141,6 +141,35 @@ END:VEVENT`)
 	}
 }
 
+// Regression (2026-09-11 incident, mer-dtd): a shadow written by an older
+// binary before X-MERIDIAN-REPAIR existed must still decode as owned, with
+// RepairTries defaulting to 0 — not rejected as malformed. A MarkerVersion
+// bump alone must never make pre-existing shadows invisible to the engine.
+func TestEventFromComponentOwnedV1BackwardCompat(t *testing.T) {
+	comp := parseVEVENT(t, `BEGIN:VEVENT
+UID:shadow@example.com
+DTSTAMP:20260807T120000Z
+DTSTART:20260818T120000Z
+DTEND:20260818T130000Z
+SUMMARY:Busy
+X-MERIDIAN-SRC:cal|uid|
+X-MERIDIAN-RULE:some-rule
+X-MERIDIAN-HASH:deadbeef
+X-MERIDIAN-INSTANCE:inst-test
+X-MERIDIAN-V:1
+END:VEVENT`)
+	ev, err := eventFromComponent(comp, "cal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.Marker == nil {
+		t.Fatal("v1 shadow must still expose its marker (zombie guard input)")
+	}
+	if ev.Marker.Rule != "some-rule" || ev.Marker.Src.UID != "uid" || ev.Marker.RepairTries != 0 || ev.Marker.V != 1 {
+		t.Errorf("marker = %+v", ev.Marker)
+	}
+}
+
 func TestEventFromComponentErrors(t *testing.T) {
 	noUID := parseVEVENT(t, `BEGIN:VEVENT
 DTSTAMP:20260807T120000Z
