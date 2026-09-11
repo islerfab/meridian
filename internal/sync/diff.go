@@ -14,12 +14,26 @@ const (
 	OpDelete OpKind = "delete"
 )
 
+// OpReason is why an op was planned. A closed set compared across files
+// (engine.go's mass-delete guard classifies on it) — a named type catches
+// a typo or a new reason at compile time instead of silently undercounting
+// a guard.
+type OpReason string
+
+const (
+	ReasonNew            OpReason = "new"
+	ReasonContentChanged OpReason = "content-changed"
+	ReasonOrphan         OpReason = "orphan"
+	ReasonDuplicate      OpReason = "duplicate"
+	ReasonDriftRepair    OpReason = "drift-repair"
+)
+
 // Op is one planned write against a destination calendar.
 type Op struct {
 	Kind   OpKind
 	Dest   string
 	Shadow model.Shadow // full desired shadow for create/update; Ref (+ old marker) for delete
-	Reason string       // "new", "content-changed", "orphan", "duplicate"
+	Reason OpReason
 }
 
 // diff computes the op set that converges one destination onto the desired
@@ -54,7 +68,7 @@ func diff(dest, instance, rule string, desired map[model.EventRef]model.ShadowCo
 					Content: content,
 					Marker:  model.NewMarker(instance, src, rule, content),
 				},
-				Reason: "new",
+				Reason: ReasonNew,
 			})
 			continue
 		}
@@ -68,7 +82,7 @@ func diff(dest, instance, rule string, desired map[model.EventRef]model.ShadowCo
 		}
 		for _, s := range existing {
 			if s.Ref != keeper.Ref {
-				ops = append(ops, Op{Kind: OpDelete, Dest: dest, Shadow: s, Reason: "duplicate"})
+				ops = append(ops, Op{Kind: OpDelete, Dest: dest, Shadow: s, Reason: ReasonDuplicate})
 			}
 		}
 		if keeper.Marker.Hash != wantHash {
@@ -80,7 +94,7 @@ func diff(dest, instance, rule string, desired map[model.EventRef]model.ShadowCo
 					Content: content,
 					Marker:  model.NewMarker(instance, src, rule, content),
 				},
-				Reason: "content-changed",
+				Reason: ReasonContentChanged,
 			})
 		}
 	}
@@ -94,7 +108,7 @@ func diff(dest, instance, rule string, desired map[model.EventRef]model.ShadowCo
 			if !window.Overlaps(s.Content.Start, s.Content.End) {
 				continue // never GC outside the window
 			}
-			ops = append(ops, Op{Kind: OpDelete, Dest: dest, Shadow: s, Reason: "orphan"})
+			ops = append(ops, Op{Kind: OpDelete, Dest: dest, Shadow: s, Reason: ReasonOrphan})
 		}
 	}
 	return ops

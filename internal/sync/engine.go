@@ -320,7 +320,7 @@ func (e *Engine) reconcileRule(ctx context.Context, rule Rule, window adapter.Wi
 					Kind:   OpUpdate,
 					Dest:   dest,
 					Shadow: model.Shadow{Ref: s.Ref, Content: content, Marker: m},
-					Reason: "drift-repair",
+					Reason: ReasonDriftRepair,
 				})
 			}
 		}
@@ -364,7 +364,7 @@ func (e *Engine) executeOps(ctx context.Context, rule, dest string, ops []Op, lo
 			ok = false
 			e.cfg.Metrics.OpErrorsTotal.WithLabelValues(rule, string(op.Kind), errClass(err)).Inc()
 			log.Error("op failed", "op", string(op.Kind), "dest", dest,
-				"src", op.Shadow.Marker.Src.String(), "reason", op.Reason, "err", err)
+				"src", op.Shadow.Marker.Src.String(), "reason", string(op.Reason), "err", err)
 			continue
 		}
 		e.cfg.Metrics.OpsTotal.WithLabelValues(rule, string(op.Kind)).Inc()
@@ -372,7 +372,7 @@ func (e *Engine) executeOps(ctx context.Context, rule, dest string, ops []Op, lo
 		log.Info("op",
 			"op", string(op.Kind), "dest", dest,
 			"src", op.Shadow.Marker.Src.String(),
-			"reason", op.Reason, "hash", op.Shadow.Marker.Hash)
+			"reason", string(op.Reason), "hash", op.Shadow.Marker.Hash)
 	}
 	return ok
 }
@@ -385,7 +385,7 @@ func (e *Engine) detectMassDelete(ctx context.Context, rule, dest string, ops []
 	}
 	orphans := 0
 	for _, op := range ops {
-		if op.Kind == OpDelete && op.Reason == "orphan" {
+		if op.Kind == OpDelete && op.Reason == ReasonOrphan {
 			orphans++
 		}
 	}
