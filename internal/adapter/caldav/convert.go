@@ -153,7 +153,7 @@ func parseComponentMarker(comp *ical.Component) (model.Marker, bool, error) {
 			props[key] = p.Value
 		}
 	}
-	return model.ParseMarker(props, false)
+	return model.ParseMarker(props, model.ProtocolCalDAV)
 }
 
 // reminderMinutes decodes a VALARM written by buildShadowCalendar:
@@ -206,7 +206,7 @@ func buildShadowCalendar(uid string, shadow model.Shadow) *ical.Calendar {
 	if c.Color != "" {
 		set(propColor, c.Color)
 	}
-	for key, value := range shadow.Marker.Properties(false) {
+	for key, value := range shadow.Marker.Properties(model.ProtocolCalDAV) {
 		set(key, value)
 	}
 	for _, m := range c.Reminders {

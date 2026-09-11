@@ -62,21 +62,21 @@ func testMarker() Marker {
 func TestMarkerRoundTrip(t *testing.T) {
 	m := testMarker()
 	m.RepairTries = 2 // non-zero must survive the round trip too
-	for _, google := range []bool{true, false} {
-		props := m.Properties(google)
-		got, found, err := ParseMarker(props, google)
+	for _, p := range []Protocol{ProtocolGoogle, ProtocolCalDAV} {
+		props := m.Properties(p)
+		got, found, err := ParseMarker(props, p)
 		if err != nil || !found {
-			t.Fatalf("google=%t: ParseMarker: found=%t err=%v", google, found, err)
+			t.Fatalf("protocol=%v: ParseMarker: found=%t err=%v", p, found, err)
 		}
 		if got != m {
-			t.Errorf("google=%t: round-trip = %+v, want %+v", google, got, m)
+			t.Errorf("protocol=%v: round-trip = %+v, want %+v", p, got, m)
 		}
 	}
 }
 
 func TestMarkerPropertyKeys(t *testing.T) {
 	m := testMarker()
-	gp := m.Properties(true)
+	gp := m.Properties(ProtocolGoogle)
 	for _, k := range []string{GoogleKeySrc, GoogleKeyRule, GoogleKeyHash, GoogleKeyInstance, GoogleKeyRepair, GoogleKeyV} {
 		if _, ok := gp[k]; !ok {
 			t.Errorf("google properties missing key %q (got %v)", k, gp)
@@ -88,7 +88,7 @@ func TestMarkerPropertyKeys(t *testing.T) {
 	if gp[GoogleKeyRepair] != "0" {
 		t.Errorf("meridian.repair = %q, want \"0\"", gp[GoogleKeyRepair])
 	}
-	cp := m.Properties(false)
+	cp := m.Properties(ProtocolCalDAV)
 	for _, k := range []string{CalDAVPropSrc, CalDAVPropRule, CalDAVPropHash, CalDAVPropInstance, CalDAVPropRepair, CalDAVPropV} {
 		if _, ok := cp[k]; !ok {
 			t.Errorf("caldav properties missing key %q (got %v)", k, cp)
@@ -102,7 +102,7 @@ func TestParseMarkerForeignEvent(t *testing.T) {
 		{},
 		{"someone.elses/key": "x", "shared": "y"},
 	} {
-		if _, found, err := ParseMarker(props, true); found || err != nil {
+		if _, found, err := ParseMarker(props, ProtocolGoogle); found || err != nil {
 			t.Errorf("props %v: found=%t err=%v, want foreign (false, nil)", props, found, err)
 		}
 	}
@@ -120,7 +120,7 @@ func TestParseMarkerV1BackwardCompat(t *testing.T) {
 		GoogleKeyInstance: "inst-test",
 		GoogleKeyV:        "1",
 	}
-	got, found, err := ParseMarker(props, true)
+	got, found, err := ParseMarker(props, ProtocolGoogle)
 	if err != nil || !found {
 		t.Fatalf("v1 marker: found=%t err=%v", found, err)
 	}
@@ -145,14 +145,14 @@ func TestParseMarkerUnsupportedVersion(t *testing.T) {
 			GoogleKeySrc: "cal|uid|", GoogleKeyRule: "r", GoogleKeyHash: "h",
 			GoogleKeyInstance: "i", GoogleKeyV: v,
 		}
-		if _, found, err := ParseMarker(props, true); !found || err == nil {
+		if _, found, err := ParseMarker(props, ProtocolGoogle); !found || err == nil {
 			t.Errorf("version %s: found=%t err=%v, want found=true with error", v, found, err)
 		}
 	}
 }
 
 func TestParseMarkerMalformed(t *testing.T) {
-	valid := testMarker().Properties(true)
+	valid := testMarker().Properties(ProtocolGoogle)
 	mutate := func(fn func(map[string]string)) map[string]string {
 		p := make(map[string]string, len(valid))
 		for k, v := range valid {
@@ -174,7 +174,7 @@ func TestParseMarkerMalformed(t *testing.T) {
 		"non-numeric repair":  mutate(func(p map[string]string) { p[GoogleKeyRepair] = "one" }),
 	}
 	for name, props := range cases {
-		_, found, err := ParseMarker(props, true)
+		_, found, err := ParseMarker(props, ProtocolGoogle)
 		if !found || err == nil {
 			t.Errorf("%s: found=%t err=%v, want found=true with error", name, found, err)
 		}

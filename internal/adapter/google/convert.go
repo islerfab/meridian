@@ -62,7 +62,7 @@ func eventFromGoogle(item *calendar.Event, calendarID string) (model.Event, erro
 	}
 
 	if item.ExtendedProperties != nil {
-		marker, found, err := model.ParseMarker(item.ExtendedProperties.Private, true)
+		marker, found, err := model.ParseMarker(item.ExtendedProperties.Private, model.ProtocolGoogle)
 		if err != nil {
 			return ev, fmt.Errorf("meridian-owned event with malformed marker: %w", err)
 		}
@@ -79,7 +79,7 @@ func shadowFromGoogle(item *calendar.Event, calendarID string) (model.Shadow, er
 	if item.ExtendedProperties == nil {
 		return shadow, fmt.Errorf("no extended properties on marker-matched event")
 	}
-	marker, found, err := model.ParseMarker(item.ExtendedProperties.Private, true)
+	marker, found, err := model.ParseMarker(item.ExtendedProperties.Private, model.ProtocolGoogle)
 	if err != nil || !found {
 		return shadow, fmt.Errorf("marker: found=%t: %w", found, err)
 	}
@@ -128,7 +128,7 @@ func googleFromShadow(shadow model.Shadow) *calendar.Event {
 		Start:       toEventDateTime(c.Start, c.AllDay),
 		End:         toEventDateTime(c.End, c.AllDay),
 		ExtendedProperties: &calendar.EventExtendedProperties{
-			Private: shadow.Marker.Properties(true),
+			Private: shadow.Marker.Properties(model.ProtocolGoogle),
 		},
 		// UseDefault=false suppresses calendar-default reminders; it is a
 		// zero value, so it must be force-sent or Google applies defaults.

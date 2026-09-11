@@ -110,7 +110,7 @@ func TestEventFromGoogleOwned(t *testing.T) {
 		Start: &calendar.EventDateTime{DateTime: "2026-08-18T12:00:00Z"},
 		End:   &calendar.EventDateTime{DateTime: "2026-08-18T13:00:00Z"},
 		ExtendedProperties: &calendar.EventExtendedProperties{
-			Private: marker.Properties(true),
+			Private: marker.Properties(model.ProtocolGoogle),
 		},
 	}
 	ev, err := eventFromGoogle(item, "cal")

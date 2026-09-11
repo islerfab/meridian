@@ -16,6 +16,17 @@ import (
 // needs a real migration or a wipe, not silently handled here.
 const MarkerVersion = 2
 
+// Protocol selects which adapter's marker key scheme to use. A closed set
+// of exactly the two protocols meridian speaks (DESIGN.md Decision 5) — a
+// named type reads at call sites (ParseMarker(props, ProtocolGoogle)),
+// where a bare bool would not.
+type Protocol int
+
+const (
+	ProtocolGoogle Protocol = iota
+	ProtocolCalDAV
+)
+
 // Property keys for the marker on each protocol (DESIGN.md Decision 2).
 // Google: extendedProperties.private keys. CalDAV: X- properties on the
 // shadow VEVENT.
@@ -97,11 +108,10 @@ func unescapeRefPart(s string) string {
 // --- protocol codecs -------------------------------------------------------
 
 // Properties returns the marker as protocol property key/value pairs.
-// google selects the Google extendedProperties.private key set; otherwise
-// the CalDAV X-MERIDIAN-* set. Adapters translate the map into their SDK's
-// representation; nothing protocol-specific lives beyond the key names.
-func (m Marker) Properties(google bool) map[string]string {
-	src, rule, hash, instance, repair, v := keysFor(google)
+// Adapters translate the map into their SDK's representation; nothing
+// protocol-specific lives beyond the key names.
+func (m Marker) Properties(p Protocol) map[string]string {
+	src, rule, hash, instance, repair, v := keysFor(p)
 	return map[string]string{
 		src:      m.Src.String(),
 		rule:     m.Rule,
@@ -128,8 +138,8 @@ func (m Marker) Properties(google bool) map[string]string {
 // them to their historically-correct value rather than treating absence as
 // malformed. Properties/NewMarker always write the current MarkerVersion —
 // nothing here ever produces an old-format marker.
-func ParseMarker(props map[string]string, google bool) (m Marker, found bool, err error) {
-	srcKey, ruleKey, hashKey, instanceKey, repairKey, vKey := keysFor(google)
+func ParseMarker(props map[string]string, p Protocol) (m Marker, found bool, err error) {
+	srcKey, ruleKey, hashKey, instanceKey, repairKey, vKey := keysFor(p)
 	srcRaw, srcOK := props[srcKey]
 	rule, ruleOK := props[ruleKey]
 	hash, hashOK := props[hashKey]
@@ -174,8 +184,8 @@ func ParseMarker(props map[string]string, google bool) (m Marker, found bool, er
 	return Marker{Src: src, Rule: rule, Hash: hash, Instance: instance, RepairTries: repairTries, V: v}, true, nil
 }
 
-func keysFor(google bool) (src, rule, hash, instance, repair, v string) {
-	if google {
+func keysFor(p Protocol) (src, rule, hash, instance, repair, v string) {
+	if p == ProtocolGoogle {
 		return GoogleKeySrc, GoogleKeyRule, GoogleKeyHash, GoogleKeyInstance, GoogleKeyRepair, GoogleKeyV
 	}
 	return CalDAVPropSrc, CalDAVPropRule, CalDAVPropHash, CalDAVPropInstance, CalDAVPropRepair, CalDAVPropV
