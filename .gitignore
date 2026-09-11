@@ -1,5 +1,6 @@
 /meridian
 .task/
+CLAUDE.local.md
 *.test
 coverage.out
 dist/
