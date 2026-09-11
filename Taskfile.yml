@@ -68,5 +68,8 @@ tasks:
   release:
     desc: Tag the next semver (from conventional commits, via svu) and push the tag — release.yml does the rest
     cmds:
-      - git tag "$(go tool svu next)"
+      # --v0 caps a breaking-change commit at a minor bump instead of
+      # auto-jumping to 1.0.0 (we're pre-beta). Exiting beta is a deliberate
+      # removal of this flag, not something that should happen by accident.
+      - git tag "$(go tool svu next --v0)"
       - git push --tags

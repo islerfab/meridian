@@ -28,10 +28,19 @@ Development is **very much interactive** right now. Even in auto/autonomous mode
 
 - ARM64 (aarch64) WSL2. Go, golangci-lint, and goreleaser are home-manager-managed (`~/.config/home-manager/home/modules/dev-go.nix`, from nixpkgs-unstable) and live in `~/.nix-profile/bin` — on PATH in all shells, no workarounds needed.
 - Build tooling: Taskfile.yml, run via `go tool task <target>` (Task is a go.mod tool dep) — `go tool task ci` = vet+lint+test+build+helm (chart lint/render + rendered-config round-trip through the strict loader). CLI framework: urfave/cli v3, isolated in `internal/cli`.
-- Releases: conventional commits + semver (0.x). `go tool task release` tags via svu (go.mod tool dep) and pushes; `.github/workflows/release.yml` runs GoReleaser on `v*` tags — binaries + GH release + changelog (built-in conventional-commit groups) + OCI image via integrated ko (no Dockerfile). Version info: GoReleaser ldflags into `internal/cli` vars, `debug.ReadBuildInfo` fallback for local builds. Local pipeline check: `goreleaser release --snapshot --clean --skip=ko` (no docker in WSL2).
+- Releases: conventional commits + semver (0.x), see **Versioning** below. `go tool task release` tags via svu (go.mod tool dep) and pushes; `.github/workflows/release.yml` runs GoReleaser on `v*` tags — binaries + GH release + changelog (built-in conventional-commit groups) + OCI image via integrated ko (no Dockerfile). Version info: GoReleaser ldflags into `internal/cli` vars, `debug.ReadBuildInfo` fallback for local builds. Local pipeline check: `goreleaser release --snapshot --clean --skip=ko` (no docker in WSL2).
 - Module path: `github.com/islerfab/meridian`.
 - Target image: ko-built on `cgr.dev/chainguard/static` (distroless-style, nonroot), linux/arm64 + amd64, pushed to `ghcr.io/islerfab/meridian`.
 - Deploys eventually to the homelab Talos cluster via ArgoCD; Helm chart lives in `deploy/` in this repo.
+
+## Versioning
+
+`go tool task release` = `git tag "$(go tool svu next --v0)"` + push. This is svu's real, unmodified commit-type mapping (verified against its source, not assumed) — don't invent an alternate pre-1.0 scheme:
+
+- `fix:` → patch, always.
+- `feat:` → minor, always. The minor digit climbing freely pre-1.0 (`0.1.0`, `0.2.0`, ...) is normal and expected — semver's own convention for "initial development, no compatibility promise yet," not something to fight or hold back.
+- Breaking (`type!:` or a `BREAKING CHANGE:` footer) → major, *except* the Taskfile passes `--v0`, which caps this at a minor bump instead while `major==0`. This is the deliberate guard against an accidental `v1.0.0` (see mer-gih — happened once, mid-development, from an ordinary `feat:` commit before this flag was added).
+- **Exiting beta = `v1.0.0`, a deliberate one-time act, decoupled from the public-launch date.** Remove `--v0` from the Taskfile release task, then cut a commit marked `feat!:`/`BREAKING CHANGE:` (a symbolic "declare stable" commit is fine if there's no real breaking change pending) so `svu next` actually crosses the threshold. Until that flag is removed, no accidental commit can push a major bump.
 
 ## OSS posture (current phase)
 
@@ -44,7 +53,7 @@ Same discipline as homelab: never generate passwords/tokens into chat, never dec
 **Never read `.env` (or any local credentials file) with Read/cat/grep** — its values must not enter the conversation context. Programs load it themselves (godotenv); when running commands, rely on that and never echo its contents.
 
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:6cd5cc61 -->
+<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->
 ## Beads Issue Tracker
 
 This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
@@ -88,6 +97,7 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 
    # Team-maintainer opt-in only, unless current instructions forbid it:
    git pull --rebase
+   bd dolt push
    git push
    git status
    ```
