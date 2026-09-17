@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 # Read-only by default; the release job widens it for itself. A workflow-level
 # write grant would apply to every job any future edit adds here.
@@ -26,6 +27,23 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      # Dispatched runs cut their own tag and then carry on into the release
+      # below. They cannot hand off to the push trigger above: a tag pushed
+      # with GITHUB_TOKEN deliberately does not start another workflow, and the
+      # way around that is a long-lived admin PAT in the secrets.
+      - name: Cut the tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          next="$(go tool svu next --v0)"
+          if [ "$next" = "$(go tool svu current)" ]; then
+            echo "No fix: or feat: commit since $next — nothing to release." >&2
+            exit 1
+          fi
+          git tag "$next"
+          git push origin "$next"
+          echo "Tagged $next"
+
       # No cosign-release input on purpose. The installer bakes in a bootstrap
       # cosign version and its SHA256 per platform; asking for that exact
       # version is the one path that verifies against the digest and stops.

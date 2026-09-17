@@ -36,7 +36,7 @@ The summary; `design.md` has the full versions and the reasoning.
 
 ## Versioning
 
-`go tool task release` is `git tag "$(go tool svu next --v0)"` plus a push. This is svu's real, unmodified commit-type mapping — don't invent an alternate pre-1.0 scheme:
+`go tool task release` is `git tag "$(go tool svu next --v0)"` plus a push of that one tag. Running the Release workflow from the Actions tab does the same on the runner, for when you aren't at a machine with the repo checked out; GoReleaser itself only ever runs in CI either way. This is svu's real, unmodified commit-type mapping — don't invent an alternate pre-1.0 scheme:
 
 - `fix:` → patch, always.
 - `feat:` → minor, always. The minor digit climbing freely pre-1.0 is normal and expected, not something to fight.
