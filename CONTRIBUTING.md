@@ -12,6 +12,15 @@ go tool task helm    # lint + render the chart, round-trip rendered config throu
 
 `Task` is a go.mod tool dependency, invoked via `go tool task` — no separate install needed beyond Go itself. golangci-lint is expected on `PATH`.
 
+```bash
+go tool task vuln   # govulncheck: advisories the code actually reaches
+go tool task fuzz   # fuzz the config and rule-evaluation layer
+```
+
+Neither is part of `ci`, because one depends on an advisory database that
+changes without the code and the other has no natural stopping point. Both run
+weekly instead.
+
 ## Commit messages
 
 This repo uses [Conventional Commits](https://www.conventionalcommits.org/) — not a style preference, the release pipeline depends on it. [`svu`](https://github.com/caarlos0/svu) derives the next version directly from commit types:
@@ -30,6 +39,11 @@ A commit that doesn't follow the convention doesn't break anything locally, but 
 4. Helm chart changes (`deploy/meridian`): `go tool task helm` lints and renders the chart in both config modes (inline `config.*` and `existingConfigMap`) and round-trips the rendered `rules.yaml` through the real config loader — treat a helm-task failure the same as a Go test failure.
 
 ## Opening a pull request
+
+`main` takes changes only through a pull request — no direct pushes, including
+from the maintainer. Approving reviews are deliberately not required while this
+is a one-person project, so a PR can be merged by its author, but CI has to be
+green first.
 
 - Keep PRs focused — one logical change per PR is easier to review and easier for `svu` to classify.
 - Add or update tests for anything behavioral.
