@@ -4,14 +4,18 @@ on:
   push:
     tags: ["v*"]
 
+# Read-only by default; the release job widens it for itself. A workflow-level
+# write grant would apply to every job any future edit adds here.
 permissions:
-  contents: write
-  packages: write
-  id-token: write # keyless cosign trades this for a Fulcio certificate
+  contents: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write # keyless cosign trades this for a Fulcio certificate
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
