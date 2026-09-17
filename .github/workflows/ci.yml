@@ -16,10 +16,16 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      # Installed through the action rather than curl-piped-to-shell, which is
+      # unpinnable by nature. The version must be built with a Go at least as
+      # new as go.mod's language version or golangci-lint refuses to load the
+      # config, so raising the go directive means revisiting this line.
       - name: Install golangci-lint
-        # Must be built with a Go at least as new as go.mod's language version,
-        # or it refuses to load the config. Raising the go directive means
-        # checking this pin. Nothing bumps it automatically.
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/v2.13.2/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v2.13.2
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.13.2
+          # Install only: the Taskfile runs the linter, so CI and a local
+          # `task ci` stay the same command rather than drifting apart.
+          install-only: true
       - name: vet, lint, test, build
         run: go tool task ci

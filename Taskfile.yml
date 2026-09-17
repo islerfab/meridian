@@ -54,6 +54,16 @@ tasks:
     cmds:
       - go tool govulncheck ./...
 
+  fuzz:
+    desc: Fuzz the config and rule-evaluation layer (the hand-written-input surface)
+    vars:
+      FUZZTIME: '{{.FUZZTIME | default "120s"}}'
+    cmds:
+      # One target at a time: -fuzz takes a single pattern, and a run only
+      # stops early when it finds something.
+      - go test ./internal/config/ -run FuzzLoad -fuzz FuzzLoad -fuzztime={{.FUZZTIME}}
+      - go test ./internal/config/ -run FuzzCompileWhen -fuzz FuzzCompileWhen -fuzztime={{.FUZZTIME}}
+
   clean:
     desc: Remove build artifacts
     cmds:
