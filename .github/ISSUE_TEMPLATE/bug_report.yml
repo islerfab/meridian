@@ -1,0 +1,101 @@
+name: Bug report
+description: Something meridian did that it shouldn't have, or didn't do that it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Most of what's asked below exists so nobody
+        has to spend three round-trips guessing which provider and which rule
+        shape produced the behaviour.
+
+        **Before you paste anything**: calendar IDs, CalDAV paths and event
+        titles are all personal data. Replace them with placeholders — the
+        shape of the config matters, the actual identifiers almost never do.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `meridian version`.
+      placeholder: "v0.0.3 (commit abc1234, built 2026-01-01)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How are you running it?
+      options:
+        - Helm chart on Kubernetes
+        - Container image, directly
+        - Binary from the releases page
+        - Built from source (go install / go build)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: providers
+    attributes:
+      label: Providers involved
+      options:
+        - label: Google Calendar
+        - label: CalDAV
+
+  - type: input
+    id: caldav-server
+    attributes:
+      label: CalDAV server
+      description: >-
+        If CalDAV is involved, which server? Implementations disagree with each
+        other constantly, so this is usually the single most useful field here.
+      placeholder: "Nextcloud 30, Radicale 3.2, Infomaniak, Fastmail, ..."
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw on the calendar, or in the logs, or both.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: The rule involved
+      description: >-
+        The relevant slice of `rules.yaml`, with identifiers replaced. Include
+        the whole rule rather than just the filter or transform — selection and
+        rewriting interact.
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: >-
+        Operation logs from around the cycle that went wrong. They're JSON, one
+        record per operation, and they carry identifiers rather than event
+        content.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: "`meridian validate` passes on this config."
+          required: true
+        - label: I removed calendar IDs, CalDAV paths, event titles and anything else private.
+          required: true

@@ -1,0 +1,26 @@
+/meridian
+.task/
+CLAUDE.local.md
+*.test
+coverage.out
+dist/
+.envrc
+
+# Maintainer tooling: issue tracker and agent configuration. Kept local on
+# purpose — the public instructions are AGENTS.md, and nothing tracked here
+# should mention which tracker or which agent the maintainer happens to use.
+.agents/
+.beads/
+.claude/
+.codex/
+.dolt/
+*.db
+.beads-credential-key
+
+# Credentials for local runs; the get-started guide lists what goes in it.
+.env
+
+# Hugo docs site build artifacts (docs/)
+docs/public/
+docs/resources/
+docs/.hugo_build.lock

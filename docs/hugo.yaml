@@ -1,0 +1,110 @@
+baseURL: "https://islerfab.github.io/meridian/"
+title: "Meridian"
+
+enableRobotsTXT: true
+enableGitInfo: true
+refLinksErrorLevel: ERROR # a broken {{% relref %}} fails the build, not just a warning
+
+outputs:
+  home: [html, llms]
+  page: [html, markdown]
+  section: [html, rss, markdown]
+
+module:
+  hugoVersion:
+    extended: false
+    # Kept equal to the pin in Taskfile.yml rather than set to the oldest
+    # hugo that happens to work. Nobody builds this site outside this repo,
+    # and every entrypoint here goes through the pinned `go run`, so the only
+    # way to be below this is to run some other hugo by hand — in which case
+    # a clear version error beats a subtly different render.
+    min: "0.166.0"
+  imports:
+    - path: github.com/imfing/hextra
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+    extensions:
+      typographer:
+        # Identity substitutions: the generated CLI reference is full of
+        # "--flag", which the typographer would otherwise render as an en
+        # dash. Smart quotes and ellipses stay on — only the dashes are
+        # neutralized.
+        enDash: "--"
+        emDash: "---"
+
+enableInlineShortcodes: true
+
+menu:
+  main:
+    - name: Home
+      pageRef: /
+      weight: 1
+    - name: Search
+      weight: 2
+      params:
+        type: search
+    - name: GitHub
+      weight: 3
+      url: "https://github.com/islerfab/meridian"
+      params:
+        icon: github
+
+params:
+  description: "Kubernetes-native, declarative calendar sync."
+
+  externalLinkDecoration: true
+
+  navbar:
+    displayTitle: true
+    displayLogo: false
+    width: wide
+
+  theme:
+    default: system
+    displayToggle: true
+
+  footer:
+    enable: true
+    displayCopyright: true
+    displayPoweredBy: true
+    width: normal
+
+  displayUpdatedDate: true
+  dateFormat: "January 2, 2006"
+
+  search:
+    enable: true
+    type: flexsearch
+    flexsearch:
+      index: content
+      tokenize: forward
+
+  editURL:
+    enable: true
+    base: "https://github.com/islerfab/meridian/edit/main/docs/content"
+
+  toc:
+    displayTags: false
+
+  highlight:
+    copy:
+      enable: true
+      display: hover
+
+  page:
+    width: normal
+    contextMenu:
+      enable: true
+      links:
+        - name: Open in ChatGPT
+          icon: chatgpt
+          url: "https://chatgpt.com/?hints=search&q=I%27m+looking+at+this+documentation%3A+{url}%0AHelp+me+understand+how+to+use+it."
+        - name: Open in Claude
+          icon: claude
+          url: "https://claude.ai/new?q=I%27m+looking+at+this+documentation%3A+{url}%0AHelp+me+understand+how+to+use+it."
+
+  comments:
+    enable: false

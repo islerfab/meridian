@@ -1,0 +1,19 @@
+{{- /*
+  . is a slice of {text, page} from the calling page's own front matter
+  (seeAlso) — hand-curated cross-references to how-to/explanation pages
+  live there, not in code or in this template, since neither can know
+  which page best explains a command's broader context.
+
+  page is resolved via site.GetPage (build-time verified, like refcard.html)
+  rather than hand-typed relative paths, so a typo fails the build loudly
+  instead of shipping a 404.
+*/ -}}
+{{- $links := slice -}}
+{{- range . -}}
+  {{- $p := site.GetPage .page -}}
+  {{- if not $p -}}
+    {{- errorf "cli-docs seeAlso: no page at %q" .page -}}
+  {{- end -}}
+  {{- $links = $links | append (printf "<a href=%q>%s</a>" $p.RelPermalink (htmlEscape .text)) -}}
+{{- end -}}
+{{- return ((printf "<p>See also: %s.</p>" (delimit $links ", ")) | safeHTML) -}}

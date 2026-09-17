@@ -1,0 +1,25 @@
+{{- /*
+  Renders every regular child page of the current section as a Hextra card,
+  using real Page objects (.RelPermalink) instead of hand-typed relative
+  paths — a section's card list can never drift or 404 as pages move,
+  and never needs updating when a page is added or removed.
+
+  Each child page supplies its own "icon" front matter (falls back to
+  "chevron-right") and uses its standard "description" front matter as the
+  card subtitle.
+
+  @param {string} cols The number of columns (default 3, matches Hextra's own cards shortcode).
+*/ -}}
+{{- $cols := .Get "cols" | default 3 -}}
+<div class="hextra-cards hx:mt-4 hx:gap-4 hx:grid not-prose" style="--hextra-cards-grid-cols: {{ $cols }};">
+  {{- range .Page.RegularPages.ByWeight }}
+    {{- partial "shortcodes/card" (dict
+        "page" .
+        "link" .RelPermalink
+        "title" .Title
+        "icon" (.Params.icon | default "chevron-right")
+        "subtitle" .Description
+      )
+    -}}
+  {{- end }}
+</div>

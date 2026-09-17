@@ -1,0 +1,49 @@
+name: Docs
+
+# The site describes a release, not the tip of main. To republish an existing
+# tag without cutting a new one, dispatch this workflow from that tag's ref.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  # A half-uploaded artifact is worse than a late one.
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # enableGitInfo needs real history for per-page last-modified dates.
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Build the site
+        env:
+          # Dispatched from a branch there's no release to name, so the footer
+          # falls back rather than linking a tag that doesn't exist.
+          HUGO_PARAMS_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: go tool task docs:build
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: docs/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -1,0 +1,37 @@
+{{- /*
+  Renders one command from docs/data/cli.json and recurses into its
+  subcommands. dict: cmd, level (heading level, an int), seeAlso (the
+  calling page's front-matter seeAlso map, keyed by full command path).
+
+  Headings are emitted as real markdown ("## `name`"), not raw HTML: this
+  partial's output becomes part of the page's markdown source (the parent
+  shortcode uses percent delimiters), so a genuine heading here still gets
+  Goldmark's normal anchor-permalink treatment, matching every other
+  heading on the site.
+
+  Generated prose is piped through safeHTML rather than printed directly:
+  that keeps Go's template escaping from mangling it on the way into the
+  markdown stream, so Goldmark renders it as the markdown it already is.
+*/ -}}
+{{- $cmd := .cmd -}}
+{{- $level := .level -}}
+{{- $seeAlso := .seeAlso -}}
+{{ printf "%s `%s`" (strings.Repeat $level "#") $cmd.path }}
+
+{{ with $cmd.usage }}{{ . | safeHTML }}{{ end }}
+
+```bash
+{{ $cmd.path }}{{ with $cmd.argsUsage }} {{ . | safeHTML }}{{ end }}{{ if $cmd.flags }} [options]{{ end }}
+```
+
+{{ with $cmd.description }}{{ . | safeHTML }}{{ end }}
+
+{{ with index $seeAlso $cmd.path }}{{ partial "clidocs/seealso.html" . }}{{ end }}
+{{ $items := slice }}
+{{- range $cmd.flags -}}
+  {{- $items = $items | append (dict "title" (delimit .names ", ") "meta" (partial "clidocs/flagmeta.html" .) "body" .usage) -}}
+{{- end }}
+{{ with $items }}{{ partial "reflist.html" . }}{{ end }}
+{{ range $cmd.subcommands }}
+{{ partial "clidocs/command.html" (dict "cmd" . "level" (add $level 1) "seeAlso" $seeAlso) }}
+{{ end }}

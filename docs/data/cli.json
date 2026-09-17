@@ -1,0 +1,209 @@
+{
+  "commands": [
+    {
+      "name": "run",
+      "path": "meridian run",
+      "usage": "Start the reconciliation loop",
+      "description": "Loads and validates config, builds adapters, runs a read-only startup auth probe against\nevery configured calendar, then cycles on the config's `interval` until SIGINT/SIGTERM.\n\nNo reconciliation cycle runs (outside --once) until every calendar's auth probe passes —\na pod that never becomes ready has provably written and deleted nothing.",
+      "flags": [
+        {
+          "names": [
+            "--config"
+          ],
+          "default": "rules.yaml",
+          "env": [
+            "MERIDIAN_CONFIG"
+          ],
+          "usage": "path to rules.yaml",
+          "required": false
+        },
+        {
+          "names": [
+            "--once"
+          ],
+          "default": "false",
+          "usage": "run a single cycle and exit",
+          "required": false
+        },
+        {
+          "names": [
+            "--listen"
+          ],
+          "default": "[::]:8080",
+          "env": [
+            "MERIDIAN_LISTEN"
+          ],
+          "usage": "observability listen address (/metrics, /healthz, /readyz)",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "validate",
+      "path": "meridian validate",
+      "usage": "Validate a rules.yaml (no credentials needed)",
+      "description": "Strict parse, every reference check, CEL and template compilation — everything `run`\ndoes at startup except resolving secret env vars and the live auth probes. Safe for CI.",
+      "flags": [
+        {
+          "names": [
+            "--config"
+          ],
+          "default": "rules.yaml",
+          "env": [
+            "MERIDIAN_CONFIG"
+          ],
+          "usage": "path to rules.yaml",
+          "required": false
+        },
+        {
+          "names": [
+            "--from-configmap"
+          ],
+          "default": "false",
+          "usage": "treat the config file as a k8s ConfigMap manifest and validate its data key \"rules.yaml\" (e.g. helm template output, kubectl get cm -o yaml)",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "wipe",
+      "path": "meridian wipe",
+      "usage": "Delete this instance's shadow events (explicit cleanup)",
+      "description": "The explicit-cleanup counterpart to the automatic per-cycle sweep, which only ever\ntouches calendars currently targeted by a rule. Listing here is unbounded: it also reaches\nshadows outside the normal sync window. Only markers belonging to the resolved instance ID\nare ever touched.\n\nBoth subcommands print a plan (how many shadows, on which calendars) and prompt for\nconfirmation before deleting anything; --yes skips the prompt for scripting. --instance\ntargets a *different* instance ID than the one in your current config — useful after\nrenaming an instance, when the old shadows are otherwise invisible and need a one-time\nmanual cleanup.",
+      "subcommands": [
+        {
+          "name": "calendar",
+          "path": "meridian wipe calendar",
+          "usage": "Delete ALL of this instance's shadows on one calendar",
+          "argsUsage": "\u003caccount/calendar\u003e",
+          "flags": [
+            {
+              "names": [
+                "--config"
+              ],
+              "default": "rules.yaml",
+              "env": [
+                "MERIDIAN_CONFIG"
+              ],
+              "usage": "path to rules.yaml",
+              "required": false
+            },
+            {
+              "names": [
+                "--yes"
+              ],
+              "default": "false",
+              "usage": "skip the confirmation prompt",
+              "required": false
+            },
+            {
+              "names": [
+                "--instance"
+              ],
+              "usage": "wipe shadows of this instance ID instead of the configured one (post-rename cleanup)",
+              "required": false
+            }
+          ]
+        },
+        {
+          "name": "rule",
+          "path": "meridian wipe rule",
+          "usage": "Delete one rule's shadows (all calendars, or --calendar)",
+          "argsUsage": "\u003crule-id\u003e",
+          "flags": [
+            {
+              "names": [
+                "--config"
+              ],
+              "default": "rules.yaml",
+              "env": [
+                "MERIDIAN_CONFIG"
+              ],
+              "usage": "path to rules.yaml",
+              "required": false
+            },
+            {
+              "names": [
+                "--yes"
+              ],
+              "default": "false",
+              "usage": "skip the confirmation prompt",
+              "required": false
+            },
+            {
+              "names": [
+                "--instance"
+              ],
+              "usage": "wipe shadows of this instance ID instead of the configured one (post-rename cleanup)",
+              "required": false
+            },
+            {
+              "names": [
+                "--calendar"
+              ],
+              "usage": "narrow to one account/calendar",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "oauth",
+      "path": "meridian oauth",
+      "usage": "Interactive OAuth bootstrap for provider accounts (Google)",
+      "description": "Runs the local-loopback OAuth consent flow and obtains a refresh token.\nBy default the token is printed to stdout (pipe it into your secret store).\nWith --write-env FILE the token is instead written into FILE as\nMERIDIAN_GOOGLE_REFRESH_TOKEN=... without ever being displayed.\n\nThe OAuth consent screen must be published to Production status in Google Cloud\nConsole — apps left in Testing mode issue refresh tokens that expire after 7 days,\nunworkable for a long-running sync engine.",
+      "flags": [
+        {
+          "names": [
+            "--client-id"
+          ],
+          "env": [
+            "MERIDIAN_GOOGLE_CLIENT_ID"
+          ],
+          "usage": "OAuth client ID (Desktop-app type)",
+          "required": false
+        },
+        {
+          "names": [
+            "--client-secret"
+          ],
+          "env": [
+            "MERIDIAN_GOOGLE_CLIENT_SECRET"
+          ],
+          "usage": "OAuth client secret",
+          "required": false
+        },
+        {
+          "names": [
+            "--port"
+          ],
+          "default": "5555",
+          "usage": "localhost callback port",
+          "required": false
+        },
+        {
+          "names": [
+            "--write-env"
+          ],
+          "usage": "write the refresh token into this env file instead of printing it",
+          "required": false
+        },
+        {
+          "names": [
+            "--env-key"
+          ],
+          "default": "MERIDIAN_GOOGLE_REFRESH_TOKEN",
+          "usage": "env key to write with --write-env",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "version",
+      "path": "meridian version",
+      "usage": "Print build version information",
+      "description": "Tag, commit, and build date via -ldflags in release builds; falls back to Go's\ntoolchain-embedded build info (debug.ReadBuildInfo) for local builds."
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+image:
+  repository: ghcr.io/islerfab/meridian
+  # Defaults to the chart appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Meridian's rules.yaml, rendered verbatim into a ConfigMap. Schema: see
+# the configuration reference (instance, interval, notifications, accounts,
+# rules). Parsing is strict — unknown fields are startup errors — and
+# secrets never appear here: account fields name ENV VARS, resolved from
+# credentials.existingSecret. Ignored when existingConfigMap is set.
+config:
+  instance: ""
+  interval: 5m
+  accounts: []
+  rules: []
+
+# Name of a ConfigMap with a `rules.yaml` key, managed outside this chart.
+# Use this to keep rules.yaml a real file in your GitOps repo — e.g. a
+# kustomize configMapGenerator, whose hash-suffixed name also rolls the
+# pod on config change (meridian reads config at startup only; the chart's
+# inline mode gets the same via a checksum annotation).
+existingConfigMap: ""
+
+credentials:
+  # Name of an existing Secret whose keys are the env var NAMES referenced
+  # by rules.yaml (usernameEnv, passwordEnv, clientIDEnv, ...). Required.
+  existingSecret: ""
+
+# Extra environment variables for the container (e.g. GOMEMLIMIT).
+extraEnv: []
+
+listen:
+  # Port for the observability surface: /metrics, /healthz, /readyz.
+  # Bound on [::] (dual-stack).
+  port: 8080
+
+service:
+  # publishNotReadyAddresses keeps a never-ready pod (failing auth probes)
+  # scrapeable — its fetch_errors_total matters most exactly then.
+  publishNotReadyAddresses: true
+
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: ""
+  # Extra labels for Prometheus-operator selector matching.
+  labels: {}
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+
+# Hardened by default; the image (chainguard/static) runs nonroot 65532.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+podAnnotations: {}
+podLabels: {}
+priorityClassName: ""
+nodeSelector: {}
+tolerations: []
+affinity: {}

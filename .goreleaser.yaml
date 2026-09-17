@@ -1,0 +1,100 @@
+version: 2
+
+project_name: meridian
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: meridian
+    main: ./cmd/meridian
+    binary: meridian
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/islerfab/meridian/internal/cli.version={{.Version}}
+      - -X github.com/islerfab/meridian/internal/cli.commit={{.Commit}}
+      - -X github.com/islerfab/meridian/internal/cli.date={{.Date}}
+    goos:
+      - linux
+    goarch:
+      - arm64
+      - amd64
+
+archives:
+  - formats: [tar.gz]
+
+kos:
+  - build: meridian
+    repositories:
+      - ghcr.io/islerfab/meridian
+    base_image: cgr.dev/chainguard/static
+    platforms:
+      - linux/arm64
+      - linux/amd64
+    tags:
+      - "{{.Version}}"
+      - latest
+    bare: true
+    preserve_import_paths: false
+    creation_time: "{{.CommitTimestamp}}"
+    sbom: spdx
+
+# Keyless cosign: no key, identity comes from the workflow's OIDC token, and
+# every signature lands in Sigstore's public transparency log. Verification
+# commands are in SECURITY.md.
+signs:
+  - cmd: cosign
+    # A bundle, not a separate signature and certificate — cosign v3 dropped
+    # --output-signature and --output-certificate.
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+
+# By digest, not tag, so a later :latest push can't move what a signature
+# refers to. ko registers the pushed manifest as the artifact.
+docker_signs:
+  - cmd: cosign
+    args:
+      - sign
+      - "--yes"
+      - "${artifact}@${digest}"
+    artifacts: manifests
+
+changelog:
+  # The compare API rather than git log, so commits carry an author login and
+  # outside contributions get credited by name.
+  use: github
+  # Default format leads with a raw SHA. Nobody reads a release page to learn
+  # a commit hash, and GitHub already links the compare range.
+  format: "{{ .Message }}{{ if .Logins }} ({{ .Logins | englishJoin }}){{ end }}"
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^feat(\(.*\))?!?:'
+      order: 0
+    - title: Bug fixes
+      regexp: '^fix(\(.*\))?!?:'
+      order: 1
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - '^chore\(deps\):'
+      - '^Merge pull request '
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot-{{ .ShortCommit }}"
+
+release:
+  footer: |
+    **Container image**: `ghcr.io/islerfab/meridian:{{.Version}}` (linux/arm64, linux/amd64)
+    **Helm chart**: `oci://ghcr.io/islerfab/charts/meridian --version {{.Version}}`

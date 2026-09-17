@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Is this a known limitation?
+    url: https://islerfab.github.io/meridian/limitations/
+    about: One-way sync, hand-edited copies being overwritten and the bounded sync window are all deliberate. Worth a look first.
+  - name: Why is it built this way?
+    url: https://islerfab.github.io/meridian/faq/
+    about: No database, polling rather than webhooks, CEL instead of code — the reasoning is written down.
+  - name: Report a security vulnerability
+    url: https://github.com/islerfab/meridian/security/advisories/new
+    about: Please use private reporting rather than a public issue.

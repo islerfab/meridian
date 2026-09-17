@@ -1,0 +1,77 @@
+{
+  "metrics": [
+    {
+      "name": "meridian_ops_total",
+      "type": "counter",
+      "labels": [
+        "rule",
+        "op"
+      ],
+      "help": "Reconciliation operations executed, by rule and op kind."
+    },
+    {
+      "name": "meridian_op_errors_total",
+      "type": "counter",
+      "labels": [
+        "rule",
+        "op",
+        "class"
+      ],
+      "help": "Failed reconciliation operations, by rule, op kind, and error class."
+    },
+    {
+      "name": "meridian_fetch_errors_total",
+      "type": "counter",
+      "labels": [
+        "calendar",
+        "class"
+      ],
+      "help": "Failed calendar window fetches, by calendar and error class."
+    },
+    {
+      "name": "meridian_guard_triggers_total",
+      "type": "counter",
+      "labels": [
+        "rule",
+        "guard"
+      ],
+      "help": "Hardening guard triggers, by rule and guard."
+    },
+    {
+      "name": "meridian_cycle_duration_seconds",
+      "type": "histogram",
+      "help": "Full reconciliation cycle duration."
+    },
+    {
+      "name": "meridian_last_successful_cycle_timestamp_seconds",
+      "type": "gauge",
+      "labels": [
+        "rule"
+      ],
+      "help": "Unix time of the last fully successful cycle per rule (the alerting primitive)."
+    },
+    {
+      "name": "meridian_notify_failures_total",
+      "type": "counter",
+      "help": "Notification deliveries that failed (best-effort channel)."
+    },
+    {
+      "name": "meridian_shadow_drift",
+      "type": "gauge",
+      "labels": [
+        "rule",
+        "dest"
+      ],
+      "help": "Shadows whose observed content hash differs from the marker hash (manual edits or provider normalization). Includes drift that gets auto-repaired this cycle — see meridian_shadow_drift_unrepairable for the alertable subset."
+    },
+    {
+      "name": "meridian_shadow_drift_unrepairable",
+      "type": "gauge",
+      "labels": [
+        "rule",
+        "dest"
+      ],
+      "help": "Shadows still drifted after exhausting bounded repair retries — persistent hand-tamper or unstable provider normalization. The alertable subset of meridian_shadow_drift."
+    }
+  ]
+}

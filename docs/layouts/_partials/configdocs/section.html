@@ -1,0 +1,10 @@
+{{- /* . is one section from docs/data/config.json: title, doc, fields[] */ -}}
+{{- $s := . -}}
+## {{ $s.title }}
+
+{{ with $s.doc }}{{ . | safeHTML }}{{ end }}
+{{ $items := slice }}
+{{- range $s.fields -}}
+  {{- $items = $items | append (dict "title" .name "meta" (partial "configdocs/fieldmeta.html" .) "body" .doc) -}}
+{{- end }}
+{{ with $items }}{{ partial "reflist.html" . }}{{ end }}

@@ -1,0 +1,10 @@
+{{- /* . is one field from docs/data/config.json: name, doc, required, default, provider */ -}}
+{{- $f := . -}}
+{{- $req := "Optional" -}}
+{{- if $f.required -}}{{- $req = "Required" -}}{{- end -}}
+{{- with $f.provider -}}{{- $req = printf "%s (%s only)" $req . -}}{{- end -}}
+{{- $parts := slice $req -}}
+{{- with $f.default -}}
+  {{- $parts = $parts | append (printf "Default: <code>%s</code>" (htmlEscape .)) -}}
+{{- end -}}
+{{- return ((delimit $parts " · ") | safeHTML) -}}

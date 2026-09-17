@@ -1,0 +1,23 @@
+{{- /*
+  A Hextra card that links to another page by content path, resolved via
+  site.GetPage instead of a hand-typed relative href — the class of bug
+  where a hand-counted "../" or a leading-slash relURL silently 404s (the
+  latter ignores baseURL's own subpath entirely, e.g. "/meridian/") can't
+  happen here: an unresolvable path fails the build instead of the browser.
+
+  @param {string} path Content-root-relative page path, e.g. "/how-to/write-rules".
+  @param {string} title Overrides the target page's title.
+  @param {string} subtitle Overrides the target page's description.
+  @param {string} icon Overrides the target page's icon front matter.
+*/ -}}
+{{- $path := .Get "path" -}}
+{{- $page := site.GetPage $path -}}
+{{- if not $page }}{{ errorf "refcard: no page at %q (%s)" $path .Position }}{{ end -}}
+{{- partial "shortcodes/card" (dict
+    "page" $page
+    "link" $page.RelPermalink
+    "title" (.Get "title" | default $page.Title)
+    "icon" (.Get "icon" | default $page.Params.icon)
+    "subtitle" (.Get "subtitle" | default $page.Description)
+  )
+-}}

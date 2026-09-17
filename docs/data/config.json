@@ -1,0 +1,262 @@
+{
+  "sections": [
+    {
+      "title": "Top level",
+      "doc": "The root of rules.yaml: instance identity, sync interval,\noperator notifications, provider accounts, and sync rules. Parsing is\nstrict — unknown fields are startup errors — and secrets never appear\nhere: account fields name environment variable identifiers, resolved at\nstartup from wherever the deployment sources them (a Kubernetes Secret,\n.env locally).",
+      "fields": [
+        {
+          "name": "instance",
+          "doc": "This meridian instance's identity, embedded in every\nownership marker it writes. Must be unique across any instances\nsharing a destination, and stable for the instance's lifetime —\nchanging it orphans every shadow the instance previously wrote (they\nbecome invisible to it; `meridian wipe --instance \u003cold\u003e` cleans them\nup).",
+          "required": true
+        },
+        {
+          "name": "interval",
+          "doc": "The time between reconciliation cycles.",
+          "default": "5m"
+        }
+      ]
+    },
+    {
+      "title": "`notifications`",
+      "doc": "Configures the operator notification channel.",
+      "fields": [
+        {
+          "name": "discordWebhookURLEnv",
+          "doc": "Names the env var holding a Discord webhook URL.\nEmpty/unset disables notifications; guard triggers and auth failures\nstill emit metrics and logs either way."
+        },
+        {
+          "name": "massDeleteFraction",
+          "doc": "Triggers the mass-delete guard\n(meridian_guard_triggers_total{guard=\"mass_delete\"} plus a\nnotification) when a rule deletes more than this fraction of its\nshadows in one cycle. 0 disables the guard.",
+          "default": "0.5"
+        }
+      ]
+    },
+    {
+      "title": "`accounts`",
+      "doc": "One provider connection. Type-specific fields are validated\nper type; setting a field that belongs to the other type is a startup\nerror.",
+      "fields": [
+        {
+          "name": "name",
+          "doc": "The account's unique name, referenced in rules as\n`\u003caccount\u003e/\u003ccalendar\u003e`.",
+          "required": true
+        },
+        {
+          "name": "type",
+          "doc": "Selects the provider: google or caldav.",
+          "required": true
+        },
+        {
+          "name": "endpoint",
+          "doc": "The CalDAV server's base URL.",
+          "required": true,
+          "provider": "caldav"
+        },
+        {
+          "name": "usernameEnv",
+          "doc": "Names the env var holding the CalDAV Basic Auth username.",
+          "required": true,
+          "provider": "caldav"
+        },
+        {
+          "name": "passwordEnv",
+          "doc": "Names the env var holding the CalDAV Basic Auth password\n(an app-specific password, if the provider requires 2FA).",
+          "required": true,
+          "provider": "caldav"
+        },
+        {
+          "name": "clientIDEnv",
+          "doc": "Names the env var holding the Google OAuth client ID.",
+          "required": true,
+          "provider": "google"
+        },
+        {
+          "name": "clientSecretEnv",
+          "doc": "Names the env var holding the Google OAuth client\nsecret.",
+          "required": true,
+          "provider": "google"
+        },
+        {
+          "name": "refreshTokenEnv",
+          "doc": "Names the env var holding a long-lived Google OAuth\nrefresh token. Get one via `meridian oauth`.",
+          "required": true,
+          "provider": "google"
+        }
+      ]
+    },
+    {
+      "title": "`accounts[].calendars`",
+      "doc": "Names one calendar of an account. The logical reference\nused in rules is `\u003caccount\u003e/\u003ccalendar\u003e`.",
+      "fields": [
+        {
+          "name": "name",
+          "doc": "Unique within the account; combines with the account name\nas `\u003caccount\u003e/\u003cname\u003e` in rules.",
+          "required": true
+        },
+        {
+          "name": "path",
+          "doc": "The CalDAV collection path.",
+          "required": true,
+          "provider": "caldav"
+        },
+        {
+          "name": "id",
+          "doc": "The Google Calendar ID: \"primary\", or\n\"xxxx@group.calendar.google.com\" from Settings -\u003e Integrate calendar.",
+          "required": true,
+          "provider": "google"
+        }
+      ]
+    },
+    {
+      "title": "`rules`",
+      "doc": "One sync rule (compiled into sync.Rule). A destination\ncalendar can be targeted by any number of rules simultaneously —\nownership is scoped by instance + rule ID, so rules never fight over\neach other's shadows.",
+      "fields": [
+        {
+          "name": "id",
+          "doc": "Unique across the whole config, embedded in every shadow's\nownership marker. Renaming a rule is equivalent to deleting it and\ncreating a new one: old shadows get swept as orphans, new ones get\ncreated fresh.",
+          "required": true
+        },
+        {
+          "name": "from",
+          "doc": "The source `\u003caccount\u003e/\u003ccalendar\u003e` reference; must be a\nconfigured calendar.",
+          "required": true
+        },
+        {
+          "name": "to",
+          "doc": "Lists destination `\u003caccount\u003e/\u003ccalendar\u003e` references; none may\nequal From.",
+          "required": true
+        },
+        {
+          "name": "filter",
+          "doc": "Selects which source events this rule mirrors. Unset matches\nevery event in the sync window."
+        },
+        {
+          "name": "transform",
+          "doc": "Computes the shadow's content. Unset mirrors every field\nfaithfully."
+        }
+      ]
+    },
+    {
+      "title": "`filter`",
+      "doc": "Selects source events. All set fields AND together: an\nevent must satisfy every one to match.",
+      "fields": [
+        {
+          "name": "weekdays",
+          "doc": "A subset of mon..sun. All-day events are matched by\ntheir date against this list alone — never subject to Window."
+        },
+        {
+          "name": "window",
+          "doc": "A daily time-of-day range (\"HH:MM-HH:MM\", must not cross\nmidnight), evaluated in Timezone. An event matches if it overlaps\nthe window on a matching weekday."
+        },
+        {
+          "name": "timezone",
+          "doc": "An IANA zone name, required whenever Window or Weekdays\nis set — event times are UTC instants internally, so this is what\nmakes the wall-clock window meaningful."
+        },
+        {
+          "name": "skipTransparent",
+          "doc": "Skips events marked transparent (\"free\") at the\nsource.",
+          "default": "false"
+        },
+        {
+          "name": "skipAllDay",
+          "doc": "Skips all-day events entirely.",
+          "default": "false"
+        },
+        {
+          "name": "when",
+          "doc": "A CEL expression over the CELEvent schema, ANDed with every\nother set field. Compiled and type-checked at config load — a bad\nexpression is a startup error, never a mid-sync surprise."
+        }
+      ]
+    },
+    {
+      "title": "`transform`",
+      "doc": "Computes the shadow's content. Every field left unset\ncopies the corresponding source value (faithful mirror by default); it\nonly needs to name what should differ. Deliberately not\nexpression-powered the way filter.when is: a bad filter mis-selects\nevents, but a bad transform corrupts calendar data, so string fields get\ntemplating and nothing more.",
+      "fields": [
+        {
+          "name": "title",
+          "doc": "A literal string or a Go template\n(https://pkg.go.dev/text/template) over the source event; the\nliteral \"drop\" empties it instead of copying or templating it."
+        },
+        {
+          "name": "description",
+          "doc": "Follows the same rules as Title."
+        },
+        {
+          "name": "location",
+          "doc": "Follows the same rules as Title."
+        },
+        {
+          "name": "transparent",
+          "doc": "Forces the shadow's opacity regardless of the source\nevent's own transparency; unset copies the source's value."
+        },
+        {
+          "name": "reminders",
+          "doc": "A list of minutes before start; an empty list means no\nreminders. Unset copies the source's reminders."
+        },
+        {
+          "name": "color",
+          "doc": "Has no source value to copy, so unset means no override at\nall, not \"mirror the source's color\". Encoding is\ndestination-provider-specific — see the rules cookbook."
+        }
+      ]
+    }
+  ],
+  "celEventSchema": {
+    "title": "CEL event schema",
+    "doc": "The documented, versioned event schema exposed to filter.when\nexpressions. Field names come from the cel tags; this is a public API —\nextend, never rename.",
+    "fields": [
+      {
+        "name": "title",
+        "doc": "The event's title.",
+        "celType": "string"
+      },
+      {
+        "name": "description",
+        "doc": "The event's description.",
+        "celType": "string"
+      },
+      {
+        "name": "location",
+        "doc": "The event's location.",
+        "celType": "string"
+      },
+      {
+        "name": "start",
+        "doc": "The event's start instant.",
+        "celType": "timestamp"
+      },
+      {
+        "name": "end",
+        "doc": "The event's end instant.",
+        "celType": "timestamp"
+      },
+      {
+        "name": "durationMinutes",
+        "doc": "End minus Start, in minutes.",
+        "celType": "int"
+      },
+      {
+        "name": "allDay",
+        "doc": "True for all-day (DATE-valued) events.",
+        "celType": "bool"
+      },
+      {
+        "name": "transparent",
+        "doc": "True when the source marks the event as free.",
+        "celType": "bool"
+      },
+      {
+        "name": "status",
+        "doc": "The event's status (e.g. confirmed, tentative, cancelled).",
+        "celType": "string"
+      },
+      {
+        "name": "organizer",
+        "doc": "The event organizer's identifier.",
+        "celType": "string"
+      },
+      {
+        "name": "attendees",
+        "doc": "Lists attendee identifiers.",
+        "celType": "list(string)"
+      }
+    ]
+  }
+}

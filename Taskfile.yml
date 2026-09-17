@@ -1,0 +1,122 @@
+version: '3'
+
+vars:
+  # No GOTOOLCHAIN=auto here on purpose: when a hugo bump outgrows go.mod, the
+  # build should fail and get go.mod raised, not quietly build the docs on a
+  # toolchain nothing else uses.
+  HUGO: go run github.com/gohugoio/hugo@v0.166.0
+
+tasks:
+  default:
+    deps: [build]
+
+  build:
+    desc: Build the meridian binary (static, stripped)
+    env:
+      CGO_ENABLED: "0"
+    sources:
+      - '**/*.go'
+      - go.mod
+      - go.sum
+    generates:
+      - meridian
+    cmds:
+      - go build -trimpath -ldflags '-s -w' -o meridian ./cmd/meridian
+
+  test:
+    desc: Run tests with the race detector
+    cmds:
+      - go test -race ./...
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run
+
+  tidy:
+    desc: Tidy go.mod/go.sum
+    cmds:
+      - go mod tidy
+
+  cover:
+    desc: Run tests with coverage report
+    cmds:
+      - go test -race -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out
+
+  vuln:
+    desc: Report known vulnerabilities the code actually reaches
+    cmds:
+      - go tool govulncheck ./...
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -f meridian coverage.out
+
+  docs:
+    desc: Serve the docs site locally with live reload (no persistent hugo install needed)
+    # Hugo has no pre-build hook, so every entrypoint that renders the site
+    # repeats deps: [docs:gen]. Without it, generated pages publish stale.
+    deps: [docs:gen]
+    dir: docs
+    cmds:
+      - '{{.HUGO}} server --buildDrafts --disableFastRender'
+
+  docs:gen:
+    desc: Regenerate the code-derived docs fragments (CLI flags, ...) from the real source
+    cmds:
+      - go run ./internal/tools/gendocs
+
+  docs:gen:check:
+    desc: Fail if the committed generated docs fragments have drifted from the code
+    cmds:
+      - go run ./internal/tools/gendocs -check
+
+  docs:check:
+    desc: Build the docs site (fails on broken refs/shortcodes)
+    deps: [docs:gen]
+    dir: docs
+    cmds:
+      - '{{.HUGO}} --gc --minify --destination /tmp/meridian-docs-check'
+
+  docs:build:
+    desc: Build the publishable docs site into docs/public (what the Pages workflow runs)
+    deps: [docs:gen]
+    dir: docs
+    cmds:
+      - '{{.HUGO}} --gc --minify --cleanDestinationDir --destination public'
+
+  helm:
+    desc: Lint and render the Helm chart (both config modes); round-trip the rendered rules.yaml through the strict config loader
+    cmds:
+      - helm lint deploy/meridian -f deploy/meridian/ci/test-values.yaml
+      - helm template meridian deploy/meridian -f deploy/meridian/ci/test-values.yaml > /dev/null
+      - helm template meridian deploy/meridian -f deploy/meridian/ci/test-values.yaml --set existingConfigMap=external-rules > /dev/null
+      - helm template meridian deploy/meridian -f deploy/meridian/ci/test-values.yaml --show-only templates/configmap.yaml | go run ./cmd/meridian validate --from-configmap --config /dev/stdin
+
+  ci:
+    desc: Everything CI runs — vet, lint, vuln, test, build, helm, docs
+    deps: [vet]
+    cmds:
+      - task: lint
+      - task: vuln
+      - task: test
+      - task: build
+      - task: helm
+      - task: docs:gen:check
+      - task: docs:check
+
+  release:
+    desc: Tag the next semver (from conventional commits, via svu) and push the tag — release.yml does the rest
+    cmds:
+      # --v0 caps a breaking-change commit at a minor bump instead of
+      # auto-jumping to 1.0.0 (we're pre-beta). Exiting beta is a deliberate
+      # removal of this flag, not something that should happen by accident.
+      - git tag "$(go tool svu next --v0)"
+      - git push --tags

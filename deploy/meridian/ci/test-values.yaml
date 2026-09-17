@@ -1,0 +1,44 @@
+# Values used by `go tool task helm` (lint + template render check).
+# Exercises the inline-config path, ServiceMonitor, and a realistic
+# two-provider rules.yaml.
+credentials:
+  existingSecret: meridian-credentials
+
+serviceMonitor:
+  enabled: true
+  labels:
+    release: monitoring
+
+config:
+  instance: example
+  interval: 5m
+  notifications:
+    discordWebhookURLEnv: DISCORD_WEBHOOK_URL
+  accounts:
+    - name: work
+      type: caldav
+      endpoint: https://caldav.example.com/dav/
+      usernameEnv: WORK_CALDAV_USERNAME
+      passwordEnv: WORK_CALDAV_PASSWORD
+      calendars:
+        - name: main
+          path: /calendars/user/main/
+    - name: personal
+      type: google
+      clientIDEnv: GOOGLE_CLIENT_ID
+      clientSecretEnv: GOOGLE_CLIENT_SECRET
+      refreshTokenEnv: PERSONAL_GOOGLE_REFRESH_TOKEN
+      calendars:
+        - name: main
+          id: user@example.com
+  rules:
+    - id: work-to-personal
+      from: work/main
+      to:
+        - personal/main
+      filter:
+        skipTransparent: true
+      transform:
+        title: Busy
+        description: drop
+        location: drop

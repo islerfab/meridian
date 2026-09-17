@@ -1,0 +1,17 @@
+{{- /* . is one flag from docs/data/cli.json: names, default, env, usage, required */ -}}
+{{- $f := . -}}
+{{- $parts := slice -}}
+{{- with $f.default -}}
+  {{- $parts = $parts | append (printf "Default: <code>%s</code>" (htmlEscape .)) -}}
+{{- end -}}
+{{- with $f.env -}}
+  {{- $envs := slice -}}
+  {{- range . -}}
+    {{- $envs = $envs | append (printf "<code>%s</code>" (htmlEscape .)) -}}
+  {{- end -}}
+  {{- $parts = $parts | append (printf "Env: %s" (delimit $envs ", ")) -}}
+{{- end -}}
+{{- if $f.required -}}
+  {{- $parts = $parts | append "Required" -}}
+{{- end -}}
+{{- return ((delimit $parts " · ") | safeHTML) -}}

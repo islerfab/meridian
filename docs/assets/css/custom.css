@@ -1,0 +1,48 @@
+/* Project overrides. Hextra loads assets/css/custom.css after its own
+   stylesheets, so this file shadows the theme's empty placeholder. */
+
+/* Reference-page definition lists: generated CLI flags, rules.yaml fields,
+   CEL schema fields, and Prometheus metrics all render through
+   _partials/reflist.html.
+
+   Hextra's typography already gives dt/dd their spacing and indent, so
+   the only thing left is putting the meta line (Default/Env/Required,
+   Type/Labels) on the same row as the term, pushed right. */
+
+.ref-list > dt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgb(229 229 229);
+}
+
+.dark .ref-list > dt {
+  border-top-color: rgb(64 64 64);
+}
+
+.ref-list > dt > .ref-meta {
+  margin-inline-start: auto;
+  font-weight: 400;
+  font-size: 0.8125rem;
+  color: rgb(115 115 115);
+}
+
+.dark .ref-list > dt > .ref-meta {
+  color: rgb(163 163 163);
+}
+
+/* Last child of a dd is often a <p> carrying a bottom margin, which
+   doubles up with the next dt's top margin. */
+.ref-list > dd > :last-child {
+  margin-bottom: 0;
+}
+
+/* Hextra lets long words break anywhere, which in a narrow first table
+   column splits short tokens at punctuation: "/healthz" renders as "/"
+   then "healthz" on the next line. First columns hold identifiers, never
+   prose, so they're safe to keep whole. */
+table td:first-child code {
+  white-space: nowrap;
+}

@@ -1,0 +1,24 @@
+{{- /*
+  Renders a list of generated reference items as one definition list —
+  CLI flags, rules.yaml fields, CEL schema fields, and metrics all share
+  this shape (a term, a short meta line, a description).
+
+  . is a slice of dicts: title (plain string, shown as code), meta
+  (pre-built safe HTML, may be empty), body (markdown from a Go doc
+  comment or Help string).
+
+  Emitted as one raw HTML block, so it must stay blank-line free: a blank
+  line would close the HTML block and hand the rest back to Goldmark as
+  markdown. Bodies are rendered explicitly with markdownify for the same
+  reason — nothing inside an HTML block gets markdown treatment.
+
+  gendocs guarantees the bodies are safe to render as ordinary markdown:
+  it rejects a bare "<" outside a code span, which is the one thing that
+  would misparse under the site's unsafe=true renderer.
+*/ -}}
+<dl class="ref-list">
+{{- range . }}
+<dt><code>{{ .title }}</code>{{ with .meta }}<span class="ref-meta">{{ . }}</span>{{ end }}</dt>
+<dd>{{ .body | markdownify }}</dd>
+{{- end }}
+</dl>

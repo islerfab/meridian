@@ -1,0 +1,14 @@
+{{- /*
+  . is the celEventSchema object from docs/data/config.json: title, doc,
+  fields[] (each: name, doc, celType). Rendered as an h3 nested under
+  `filter`'s h2 — the CEL event schema is what filter.when expressions see.
+*/ -}}
+{{- $s := . -}}
+### {{ $s.title }}
+
+{{ with $s.doc }}{{ . | safeHTML }}{{ end }}
+{{ $items := slice }}
+{{- range $s.fields -}}
+  {{- $items = $items | append (dict "title" (printf "event.%s" .name) "meta" (printf "Type: %s" .celType | safeHTML) "body" .doc) -}}
+{{- end }}
+{{ with $items }}{{ partial "reflist.html" . }}{{ end }}

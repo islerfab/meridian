@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      # Restricting the group to minors and patches is what makes majors arrive
+      # one per PR, to be read rather than skimmed. The actions group below
+      # deliberately omits this: an action major is near-always a Node bump.
+      go-modules:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      # svu cuts releases only for fix and feat, so a bump that needs to ship
+      # wants its merge commit reworded to fix(deps).
+      prefix: "chore(deps)"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(deps)"
