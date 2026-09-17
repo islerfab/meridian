@@ -69,6 +69,15 @@ docker_signs:
       - "${artifact}@${digest}"
     artifacts: manifests
 
+# Fixed names rather than templated ones: the attestation step in
+# release.yml has to name these files, and a template there would have to be
+# kept in step with this one.
+checksum:
+  name_template: "checksums.txt"
+
+docker_digest:
+  name_template: "digests.txt"
+
 changelog:
   # The compare API rather than git log, so commits carry an author login and
   # outside contributions get credited by name. Falls back to git when one of
