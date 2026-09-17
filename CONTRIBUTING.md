@@ -40,10 +40,10 @@ A commit that doesn't follow the convention doesn't break anything locally, but 
 
 ## Opening a pull request
 
-`main` takes changes only through a pull request — no direct pushes, including
-from the maintainer. Approving reviews are deliberately not required while this
-is a one-person project, so a PR can be merged by its author, but CI has to be
-green first.
+Contributions come in as pull requests; the maintainer currently pushes to
+`main` directly, which is the honest description of a one-person project rather
+than a rule anyone else needs to follow. `main` is protected against force-push
+and deletion.
 
 - Keep PRs focused — one logical change per PR is easier to review and easier for `svu` to classify.
 - Add or update tests for anything behavioral.
