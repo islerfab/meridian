@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/islerfab/meridian/actions/workflows/ci.yml/badge.svg)](https://github.com/islerfab/meridian/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/github/v/release/islerfab/meridian?label=docs&color=0969da)](https://islerfab.github.io/meridian/)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/islerfab/meridian/badge)](https://scorecard.dev/viewer/?uri=github.com/islerfab/meridian)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Declarative, Kubernetes-native calendar sync. Meridian mirrors events between Google Calendar and CalDAV calendars as rule-based, transformed copies, configured entirely as code and running as a single stateless pod.
