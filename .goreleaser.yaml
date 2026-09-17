@@ -71,11 +71,12 @@ docker_signs:
 
 changelog:
   # The compare API rather than git log, so commits carry an author login and
-  # outside contributions get credited by name.
+  # outside contributions get credited by name. Falls back to git when one of
+  # the two tags is missing, which costs the logins on a first release.
   use: github
-  # Default format leads with a raw SHA. Nobody reads a release page to learn
-  # a commit hash, and GitHub already links the compare range.
-  format: "{{ .Message }}{{ if .Logins }} ({{ .Logins | englishJoin }}){{ end }}"
+  # The default prints a bare 40-character SHA. Same information, linked and
+  # cut to the length people actually read.
+  format: '{{ .Message }} ([`{{ printf "%.7s" .SHA }}`](https://github.com/islerfab/meridian/commit/{{ .SHA }})){{ if .Logins }} by {{ .Logins | englishJoin }}{{ end }}'
   sort: asc
   groups:
     - title: Features
