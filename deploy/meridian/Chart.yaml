@@ -1,6 +1,6 @@
 apiVersion: v2
 name: meridian
-description: Declarative one-way calendar sync, Kubernetes-first — stateless snapshot reconciliation between Google Calendar and CalDAV.
+description: Declarative one-way calendar sync, Kubernetes-first — stateless snapshot reconciliation between your own calendars. Google Calendar and CalDAV.
 type: application
 home: https://islerfab.github.io/meridian/
 icon: https://raw.githubusercontent.com/islerfab/meridian/main/docs/static/images/logo.png

@@ -1,11 +1,11 @@
 # Meridian
 
-Declarative, one-way calendar sync between Google Calendar and CalDAV, running
-as a single stateless pod — a private calendar mirrored into a work calendar as
-anonymous **Busy** blocks, say. The [project
-README](https://github.com/islerfab/meridian) has the wider tour and the
-[documentation](https://islerfab.github.io/meridian/) has everything else; this
-page is about installing the chart.
+Declarative, one-way calendar sync between your own calendars, running as a
+single stateless pod — a private calendar mirrored into a work calendar as
+anonymous **Busy** blocks, say. Google Calendar and CalDAV, in any combination.
+The [project README](https://github.com/islerfab/meridian) has the wider tour
+and the [documentation](https://islerfab.github.io/meridian/) has everything
+else; this page is about installing the chart.
 
 What that costs you to run is the part worth knowing up front: no database, no
 PersistentVolumeClaim, no StatefulSet. Each cycle reads the current state of

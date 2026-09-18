@@ -1,6 +1,6 @@
 # Agent instructions
 
-Meridian is a Kubernetes-first, declarative calendar sync engine: one-way, rule-based mirrors between Google Calendar and CalDAV, configured as YAML and running as a single stateless pod. Go, single-tenant, MIT.
+Meridian is a Kubernetes-first, declarative calendar sync engine: one-way, rule-based mirrors between a user's own calendars, configured as YAML and running as a single stateless pod. Google Calendar and CalDAV, in any combination. Go, single-tenant, MIT.
 
 This file is the working contract for anyone changing the code, human or agent. [CONTRIBUTING.md](CONTRIBUTING.md) covers the pull-request process and the local commands; this file covers what the project will and won't accept as a change.
 

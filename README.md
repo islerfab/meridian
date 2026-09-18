@@ -4,10 +4,11 @@
 
 [![CI](https://github.com/islerfab/meridian/actions/workflows/ci.yml/badge.svg)](https://github.com/islerfab/meridian/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/github/v/release/islerfab/meridian?label=docs&color=0969da)](https://islerfab.github.io/meridian/)
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/meridian)](https://artifacthub.io/packages/search?repo=meridian)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/islerfab/meridian/badge)](https://scorecard.dev/viewer/?uri=github.com/islerfab/meridian)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Declarative, Kubernetes-first calendar sync. Meridian mirrors events between Google Calendar and CalDAV calendars as rule-based, transformed copies, configured entirely as code and running as a single stateless pod.
+Declarative, Kubernetes-first calendar sync. Meridian mirrors events between your own calendars as rule-based, transformed copies, configured entirely as code and running as a single stateless pod. Google Calendar and CalDAV, in any combination.
 
 The canonical example: every appointment on your private calendar shows up as an anonymous **Busy** block on your work calendar. Colleagues see when you're free. They don't see why you aren't.
 
