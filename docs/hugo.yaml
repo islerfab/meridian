@@ -3,6 +3,10 @@ title: "Meridian Calendar Sync"
 
 enableRobotsTXT: true
 enableGitInfo: true
+
+# Nothing here is tagged or categorized, so the taxonomy pages were empty and
+# went into the sitemap anyway.
+disableKinds: [taxonomy, term]
 refLinksErrorLevel: ERROR # a broken {{% relref %}} fails the build, not just a warning
 
 outputs:
