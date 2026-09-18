@@ -63,7 +63,14 @@ params:
 
   navbar:
     displayTitle: true
-    displayLogo: false
+    displayLogo: true
+    logo:
+      # No `link` here on purpose: Hextra writes that value into href
+      # unchanged, so any value bypasses the /meridian/ base path. Left unset,
+      # it uses the site's own home permalink.
+      path: images/logo.svg
+      width: 28
+      height: 28
     width: wide
 
   theme:

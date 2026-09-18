@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <defs>
+    <clipPath id="meridian-source"><rect x="8" y="8" width="30" height="30" rx="6"/></clipPath>
+    <clipPath id="meridian-shadow"><rect x="26" y="26" width="30" height="30" rx="6"/></clipPath>
+  </defs>
+
+  <ellipse cx="32" cy="32" rx="13" ry="30" stroke="#0D9488" stroke-opacity=".28" stroke-width="2.5"/>
+
+  <rect x="26" y="26" width="30" height="30" rx="6" fill="#C0E3E0"/>
+  <rect x="26" y="32.5" width="30" height="2.4" fill="#0D9488"/>
+  <g fill="#0D9488">
+    <circle cx="34" cy="41" r="2.2"/><circle cx="41" cy="41" r="2.2"/>
+    <circle cx="34" cy="49" r="2.2"/><circle cx="48" cy="49" r="2.2"/>
+  </g>
+  <g fill="#66BCB4">
+    <circle cx="48" cy="41" r="2.2"/><circle cx="41" cy="49" r="2.2"/>
+  </g>
+
+  <rect x="8" y="8" width="30" height="30" rx="6" fill="#0D9488"/>
+  <rect x="8" y="14.5" width="30" height="2.4" fill="#C0E3E0"/>
+  <g fill="#C0E3E0">
+    <circle cx="16" cy="23" r="2.2"/><circle cx="23" cy="23" r="2.2"/><circle cx="30" cy="23" r="2.2"/>
+    <circle cx="16" cy="31" r="2.2"/><circle cx="23" cy="31" r="2.2"/><circle cx="30" cy="31" r="2.2"/>
+  </g>
+
+  <path d="M32 2A13 30 0 0 0 32 62" stroke="#C0E3E0" stroke-opacity=".5" stroke-width="2.5" clip-path="url(#meridian-source)"/>
+  <path d="M32 2A13 30 0 0 0 32 62" stroke="#0D9488" stroke-opacity=".45" stroke-width="2.5" clip-path="url(#meridian-shadow)"/>
+</svg>

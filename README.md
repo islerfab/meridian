@@ -1,3 +1,5 @@
+<img src="docs/static/images/logo.svg" width="76" alt="">
+
 # Meridian
 
 [![CI](https://github.com/islerfab/meridian/actions/workflows/ci.yml/badge.svg)](https://github.com/islerfab/meridian/actions/workflows/ci.yml)
