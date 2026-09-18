@@ -1,17 +1,16 @@
 # Meridian
 
 Declarative, one-way calendar sync between Google Calendar and CalDAV, running
-as a single stateless pod. Rules live in YAML next to everything else you
-deploy: which calendars feed which, what gets filtered out, and how each copy
-is rewritten on the way across.
+as a single stateless pod — a private calendar mirrored into a work calendar as
+anonymous **Busy** blocks, say. The [project
+README](https://github.com/islerfab/meridian) has the wider tour and the
+[documentation](https://islerfab.github.io/meridian/) has everything else; this
+page is about installing the chart.
 
-The canonical example is a private calendar mirrored into a work calendar as
-anonymous **Busy** blocks. Colleagues see when you're free without seeing why
-you aren't.
-
-There is no database. Each cycle reads the current state of both calendars,
-works out which copies should exist, and makes the destination match. A crashed
-pod, a restored backup and a rewritten config all converge the same way.
+What that costs you to run is the part worth knowing up front: no database, no
+PersistentVolumeClaim, no StatefulSet. Each cycle reads the current state of
+both calendars, works out which copies should exist, and makes the destination
+match, which is why one stateless replica is enough.
 
 ## What gets deployed
 

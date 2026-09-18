@@ -6,6 +6,10 @@ home: https://islerfab.github.io/meridian/
 icon: https://raw.githubusercontent.com/islerfab/meridian/main/docs/static/images/logo.png
 sources:
   - https://github.com/islerfab/meridian
+  - https://github.com/islerfab/meridian/tree/main/deploy/meridian
+# seccompProfile on the pod security context is the newest thing rendered here
+# (GA in 1.19); everything else is apps/v1 and core/v1.
+kubeVersion: ">= 1.19.0-0"
 keywords:
   - calendar
   - calendar-sync
