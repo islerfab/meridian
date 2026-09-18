@@ -1,0 +1,9 @@
+.DS_Store
+.git/
+.gitignore
+*.tmproj
+.idea/
+.vscode/
+
+# Values used only by `task helm` to lint and render the chart.
+ci/
