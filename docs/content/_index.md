@@ -4,7 +4,7 @@ cascade:
   type: docs
 ---
 
-Declarative, Kubernetes-native calendar sync. Meridian mirrors events between Google Calendar and CalDAV calendars as rule-based, transformed copies, configured entirely as code and running as a single stateless pod.
+Declarative, Kubernetes-first calendar sync. Meridian mirrors events between Google Calendar and CalDAV calendars as rule-based, transformed copies, configured entirely as code and running as a single stateless pod.
 
 The canonical example: every appointment on your private calendar shows up as an anonymous **Busy** block on your work calendar. Colleagues see when you're free. They don't see why you aren't.
 

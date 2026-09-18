@@ -57,7 +57,7 @@ menu:
         icon: github
 
 params:
-  description: "Kubernetes-native, declarative calendar sync."
+  description: "Kubernetes-first, declarative calendar sync."
 
   externalLinkDecoration: true
 
