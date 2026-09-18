@@ -88,9 +88,9 @@ rules:
 
 Ownership markers are scoped by instance and rule ID, so these two never fight over each other's copies.
 
-There's a subtler trap here that meridian closes for you. Left alone, `work-to-private` would read the work calendar, find the Busy blocks that `private-to-work` just wrote there, and dutifully mirror them back to the private calendar as new events. Then the first rule mirrors *those* across, and so on. Delete the original and the loop hands it back to you.
+There's a subtler trap here that Meridian closes for you. Left alone, `work-to-private` would read the work calendar, find the Busy blocks that `private-to-work` just wrote there, and dutifully mirror them back to the private calendar as new events. Then the first rule mirrors *those* across, and so on. Delete the original and the loop hands it back to you.
 
-So meridian skips any source event carrying a meridian marker, whoever wrote it. A copy is never treated as something worth copying. This is the zombie-resurrection guard, and it earned the name.
+So Meridian skips any source event carrying a Meridian marker, whoever wrote it. A copy is never treated as something worth copying. This is the zombie-resurrection guard, and it earned the name.
 
 This is still two mirrors, not a merge. See [Limitations]({{% relref "limitations" %}}).
 

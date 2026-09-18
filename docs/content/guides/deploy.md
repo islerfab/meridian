@@ -107,7 +107,7 @@ See [Operate]({{% relref "guides/operate" %}}) for which metrics deserve alerts.
 Meridian makes rollback cheap. Every event it writes carries an ownership marker, so undoing everything is one `meridian wipe` away. Cheap to undo is not the same as safe to skip, though, and two precautions are worth the delay.
 
 > [!WARNING]
-> **Don't run meridian alongside another sync tool on the same calendars.** Two engines each treating the other's output as a source event to mirror will produce results that are very hard to distinguish from a bug in either one. Stage on calendars the old tool never touches, then cut over.
+> **Don't run Meridian alongside another sync tool on the same calendars.** Two engines each treating the other's output as a source event to mirror will produce results that are very hard to distinguish from a bug in either one. Stage on calendars the old tool never touches, then cut over.
 
 The useful staging trick is to split the risk: point rules at **scratch destination calendars** while reading from your **real sources**. You get the full variety of your actual data, including the recurring series and all-day oddities no synthetic test would have thought of, with nothing at stake on the destination side.
 

@@ -5,11 +5,11 @@ icon: question-mark-circle
 description: Why it's built this way, and what to expect before you point it at a calendar.
 ---
 
-Questions that come up before people trust meridian with a calendar they care about. [Limitations]({{% relref "limitations" %}}) covers what it deliberately doesn't do; [Design]({{% relref "design" %}}) has the invariants underneath these answers.
+Questions that come up before people trust Meridian with a calendar they care about. [Limitations]({{% relref "limitations" %}}) covers what it deliberately doesn't do; [Design]({{% relref "design" %}}) has the invariants underneath these answers.
 
 ## Why is there no database?
 
-Because the calendars already hold the state. Every copy meridian writes carries a marker naming the rule that created it, so the full picture of what should exist is rebuilt from the calendars themselves each cycle. A database would be a second copy of something already stored, and a second thing to get out of step.
+Because the calendars already hold the state. Every copy Meridian writes carries a marker naming the rule that created it, so the full picture of what should exist is rebuilt from the calendars themselves each cycle. A database would be a second copy of something already stored, and a second thing to get out of step.
 
 The alternative is also harder than it looks on both protocols.
 
@@ -55,7 +55,7 @@ What validation can't catch is a filter that's perfectly valid and selects the w
 
 Not on the same calendars. Two engines each treating the other's output as a source event to mirror produce results that are very hard to tell apart from a bug in either one.
 
-Meridian skips any source event carrying a meridian marker, whoever wrote it, so it never feeds on its own output or another instance's. It has no way to recognize a different tool's copies, and no tool in this space has a shared convention for saying "this is a copy, leave it alone".
+Meridian skips any source event carrying a Meridian marker, whoever wrote it, so it never feeds on its own output or another instance's. It has no way to recognize a different tool's copies, and no tool in this space has a shared convention for saying "this is a copy, leave it alone".
 
 Stage on calendars the old tool never touches, then cut over.
 

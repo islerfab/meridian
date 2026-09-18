@@ -2,10 +2,10 @@
 title: Limitations
 weight: 4
 icon: exclamation-circle
-description: What meridian doesn't do, on purpose and otherwise.
+description: What Meridian doesn't do, on purpose and otherwise.
 ---
 
-Every tool has a shape. Here is meridian's, stated plainly, so you can find out now rather than three weeks into a migration.
+Every tool has a shape. Here is Meridian's, stated plainly, so you can find out now rather than three weeks into a migration.
 
 This page is the list. The [FAQ]({{% relref "faq" %}}) covers why any of it is the way it is.
 
@@ -25,7 +25,7 @@ Consequences of the architecture. Changing them would mean a different tool.
 
 **It doesn't schedule anything.** Meridian copies events. It never looks for a free slot, moves an appointment, or negotiates availability between people.
 
-**Recurrence depends on your provider.** Recurring events are expanded server-side and meridian consumes the result. A provider that expands incorrectly is one meridian fails loudly against rather than works around.
+**Recurrence depends on your provider.** Recurring events are expanded server-side and Meridian consumes the result. A provider that expands incorrectly is one Meridian fails loudly against rather than works around.
 
 ## Not yet
 
@@ -40,6 +40,6 @@ Genuine gaps rather than design positions. These may close.
 
 ## Worth knowing
 
-**Birthdays are skipped.** Google injects contacts' birthdays into the `primary` calendar's event feed, and meridian ignores them, because almost nobody means to mirror them. To sync them anyway, name Google's dedicated birthday calendar explicitly, as shown in [Write sync rules]({{% relref "guides/write-rules" %}}).
+**Birthdays are skipped.** Google injects contacts' birthdays into the `primary` calendar's event feed, and Meridian ignores them, because almost nobody means to mirror them. To sync them anyway, name Google's dedicated birthday calendar explicitly, as shown in [Write sync rules]({{% relref "guides/write-rules" %}}).
 
 **The mass-delete guard reports rather than blocks.** An unusual share of deletions in one cycle fires a loud metric, and the deletions still go through. That's the intended behaviour, for reasons the [Design]({{% relref "design" %}}) page covers under the guards.

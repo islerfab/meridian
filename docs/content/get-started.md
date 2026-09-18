@@ -144,7 +144,7 @@ Nothing happens, and that's the entire point. Meridian compares a content hash a
 
 ## Cleaning up
 
-When you're done playing, remove everything meridian created:
+When you're done playing, remove everything Meridian created:
 
 ```bash
 meridian wipe rule main-to-scratch --config rules.yaml --yes
@@ -157,5 +157,5 @@ Then delete the scratch calendar. Meridian only ever deletes events carrying its
 {{< cards >}}
   {{< refcard path="/guides/write-rules" title="Write sync rules" subtitle="Filters, transforms, the Busy pattern, bidirectional pairs." icon="adjustments" >}}
   {{< refcard path="/guides/deploy" title="Deploy on Kubernetes" subtitle="Run this continuously instead of by hand." icon="server" >}}
-  {{< refcard path="/limitations" title="Limitations" subtitle="What meridian deliberately doesn't do, before you rely on it." icon="exclamation-circle" >}}
+  {{< refcard path="/limitations" title="Limitations" subtitle="What Meridian deliberately doesn't do, before you rely on it." icon="exclamation-circle" >}}
 {{< /cards >}}

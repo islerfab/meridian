@@ -8,7 +8,7 @@ Declarative, Kubernetes-native calendar sync. Meridian mirrors events between Go
 
 The canonical example: every appointment on your private calendar shows up as an anonymous **Busy** block on your work calendar. Colleagues see when you're free. They don't see why you aren't.
 
-![One source calendar on the left holding three events. Two meridian rules in the middle. On the right, the shadows each rule produces: the first filters to events before 14:00 and rewrites them as grey Busy blocks with the location stripped, the second mirrors all three events with their titles prefixed.](images/meridian.excalidraw.svg)
+![One source calendar on the left holding three events. Two Meridian rules in the middle. On the right, the shadows each rule produces: the first filters to events before 14:00 and rewrites them as grey Busy blocks with the location stripped, the second mirrors all three events with their titles prefixed.](images/meridian.excalidraw.svg)
 
 > [!IMPORTANT]
 > **Status: pre-alpha, running unattended in production on one deployment.** The design is settled (see [Design]({{% relref "design" %}})) and the engine handles real traffic daily. The public interface — `rules.yaml`, the Helm chart, the CLI — may still change without notice before `v1.0.0`.
@@ -55,7 +55,7 @@ flowchart LR
 ## Where to go next
 
 {{< cards >}}
-  {{< refcard path="/get-started" title="New to meridian?" subtitle="Get one rule syncing end to end on your laptop, in a few minutes." icon="play" >}}
+  {{< refcard path="/get-started" title="New to Meridian?" subtitle="Get one rule syncing end to end on your laptop, in a few minutes." icon="play" >}}
   {{< refcard path="/guides/deploy" title="Deploying for real?" subtitle="Install the Helm chart, pick a config mode, wire up metrics." icon="server" >}}
   {{< refcard path="/guides/write-rules" title="Writing rules?" subtitle="Worked examples for filters, transforms, and bidirectional pairs." icon="adjustments" >}}
   {{< refcard path="/faq" title="Not sure yet?" subtitle="Why there's no database, whether it's safe to point at a calendar you use." >}}

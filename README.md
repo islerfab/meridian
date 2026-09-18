@@ -1,4 +1,4 @@
-# meridian
+# Meridian
 
 [![CI](https://github.com/islerfab/meridian/actions/workflows/ci.yml/badge.svg)](https://github.com/islerfab/meridian/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/github/v/release/islerfab/meridian?label=docs&color=0969da)](https://islerfab.github.io/meridian/)
@@ -9,7 +9,7 @@ Declarative, Kubernetes-native calendar sync. Meridian mirrors events between Go
 
 The canonical example: every appointment on your private calendar shows up as an anonymous **Busy** block on your work calendar. Colleagues see when you're free. They don't see why you aren't.
 
-![One source calendar on the left holding three events. Two meridian rules in the middle. On the right, the shadows each rule produces: the first filters to events before 14:00 and rewrites them as grey Busy blocks with the location stripped, the second mirrors all three events with their titles prefixed.](docs/static/images/meridian.excalidraw.svg)
+![One source calendar on the left holding three events. Two Meridian rules in the middle. On the right, the shadows each rule produces: the first filters to events before 14:00 and rewrites them as grey Busy blocks with the location stripped, the second mirrors all three events with their titles prefixed.](docs/static/images/meridian.excalidraw.svg)
 
 > **Status: pre-alpha, running unattended in production on one deployment.** The design is settled and the engine handles real traffic daily. The public interface — `rules.yaml`, the Helm chart, the CLI — may still change without notice before `v1.0.0`.
 
@@ -88,7 +88,7 @@ Level-triggered reconciliation, the way a Kubernetes controller works. Each cycl
 
 Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the build commands, the commit convention the release pipeline depends on, and what a change to the engine is expected to come with. Be civil about it ([code of conduct](CODE_OF_CONDUCT.md)).
 
-Found a security problem? [SECURITY.md](SECURITY.md) has private reporting and the trust boundary — what meridian does with calendar credentials, and what it deliberately never touches.
+Found a security problem? [SECURITY.md](SECURITY.md) has private reporting and the trust boundary — what Meridian does with calendar credentials, and what it deliberately never touches.
 
 ## License
 

@@ -23,7 +23,7 @@ import (
 // startup from wherever the deployment sources them (a Kubernetes Secret,
 // .env locally).
 type Config struct {
-	// Instance is this meridian instance's identity, embedded in every
+	// Instance is this Meridian instance's identity, embedded in every
 	// ownership marker it writes. Must be unique across any instances
 	// sharing a destination, and stable for the instance's lifetime —
 	// changing it orphans every shadow the instance previously wrote (they

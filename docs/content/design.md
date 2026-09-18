@@ -7,7 +7,7 @@ description: What each part of the engine guarantees, and what it refuses to do.
 
 The [landing page]({{% relref "/" %}}) has the one-paragraph version of how reconciliation works. This page is the layer underneath it.
 
-It's organized by the things meridian operates on rather than by the order the decisions were made, so a section here maps roughly onto the package you'd be editing.
+It's organized by the things Meridian operates on rather than by the order the decisions were made, so a section here maps roughly onto the package you'd be editing.
 
 ## The cycle
 
@@ -23,7 +23,7 @@ Every cycle fetches all events in the sync window from each source and destinati
 
 ## The marker
 
-Every copy meridian writes carries a marker. It is the only cross-cycle state that exists.
+Every copy Meridian writes carries a marker. It is the only cross-cycle state that exists.
 
 | Field | Google (`extendedProperties.private`) | CalDAV (VEVENT property) | Content |
 |---|---|---|---|
@@ -34,11 +34,11 @@ Every copy meridian writes carries a marker. It is the only cross-cycle state th
 | Schema version | `meridian.v` | `X-MERIDIAN-V` | Marker format version |
 | Repair tries | `meridian.repair` | `X-MERIDIAN-REPAIR` | Bounded drift-repair attempts against the current hash |
 
-**Ownership is instance plus rule.** Two rules never contend over the same copy, and several meridian instances can feed one destination calendar without seeing each other at all.
+**Ownership is instance plus rule.** Two rules never contend over the same copy, and several Meridian instances can feed one destination calendar without seeing each other at all.
 
 **Change detection reads the marker, never the event.** Meridian computes the intended content, hashes it, and compares against the hash stored in the marker. Provider-returned values are never compared directly, which makes server-side normalization structurally irrelevant. Whitespace changes, field coercion and reordering cannot trigger a spurious update.
 
-**Old markers stay readable forever.** Every version meridian has written decodes into the current representation, with new fields defaulting to their historically correct value. A copy written before repair-counting existed had zero repairs, not an unknown number. Writes always stamp the current version, so ordinary reconciliation upgrades markers as a side effect.
+**Old markers stay readable forever.** Every version Meridian has written decodes into the current representation, with new fields defaulting to their historically correct value. A copy written before repair-counting existed had zero repairs, not an unknown number. Writes always stamp the current version, so ordinary reconciliation upgrades markers as a side effect.
 
 A dedicated migration is reserved for the one case this can't cover: an old shape that cannot decode into the new one at all, because a field was removed or the identity encoding changed.
 
@@ -46,9 +46,9 @@ A dedicated migration is reserved for the one case this can't cover: an old shap
 
 Trusting the marker has a consequence. A hand-edit that preserves the marker is indistinguishable from provider normalization, since both arrive as "the content hash doesn't match the marker's hash".
 
-**The response is bounded repair.** On drift, meridian rewrites the intended content up to a small number of tries, then falls back to detect-only and a separately alertable metric. That self-heals hand-edits, and it degrades safely against a provider that keeps normalizing something. The bound is what makes repair safe; it isn't a claim that observed content became trustworthy.
+**The response is bounded repair.** On drift, Meridian rewrites the intended content up to a small number of tries, then falls back to detect-only and a separately alertable metric. That self-heals hand-edits, and it degrades safely against a provider that keeps normalizing something. The bound is what makes repair safe; it isn't a claim that observed content became trustworthy.
 
-Manual *deletions* are always healed, regardless of the bound. Resurrection is the one service meridian offers unconditionally.
+Manual *deletions* are always healed, regardless of the bound. Resurrection is the one service Meridian offers unconditionally.
 
 ```mermaid
 flowchart LR
@@ -128,7 +128,7 @@ Client-side expansion would reimplement the machinery that dominates every sync 
 
 Because reconciliation re-derives the whole instance set each cycle, a changed recurrence rule needs no special handling. Stale copies are swept as orphans and new ones appear as ordinary creates.
 
-The cost is a hard dependency on the provider expanding correctly. If one doesn't, meridian fails loudly rather than guessing.
+The cost is a hard dependency on the provider expanding correctly. If one doesn't, Meridian fails loudly rather than guessing.
 
 **The internal model is absolute UTC instants plus an `AllDay` flag.** No timezone math happens inside the engine. All-day sources always produce all-day copies, never converted to timed events, and all-day expansion is interpreted in the source calendar's declared timezone. Timed copies are written as UTC instants, which render correctly at any display timezone regardless of the destination calendar's own default.
 
@@ -138,10 +138,10 @@ The cost is a hard dependency on the provider expanding correctly. If one doesn'
 
 Five correctness requirements, each carrying its own tests.
 
-1. **Zombie resurrection.** Any source event carrying a meridian marker is skipped, whoever wrote it. A copy is never syncable content. Without this, a bidirectional pair mirrors its own output back and forth forever, and a deleted event walks back in from the other side.
+1. **Zombie resurrection.** Any source event carrying a Meridian marker is skipped, whoever wrote it. A copy is never syncable content. Without this, a bidirectional pair mirrors its own output back and forth forever, and a deleted event walks back in from the other side.
 2. **Mass delete.** Deleting an unusual fraction of a rule's copies in one cycle fires a loud metric.
 3. **Change detection by content hash**, keyed on a normalized source ID. Never ETags or modified-timestamps, which churn without anything having changed.
-4. **Orphan collection restricted to the sync window.** Window edges are ambiguous, so meridian never collects outside the range it actually reconciles.
+4. **Orphan collection restricted to the sync window.** Window edges are ambiguous, so Meridian never collects outside the range it actually reconciles.
 5. **Tombstone tolerance.** A deleted or `410 Gone` event is treated as deleted, never as a reason to abort the cycle.
 
 **The mass-delete guard detects and does not block.** Copies are fully derived, so a bogus empty fetch costs one cycle of missing data, and the next healthy cycle rebuilds them identically. Freezing instead strands a divergent state that no later cycle can resolve, and blocks legitimate cleanups. A *failed* fetch is a different thing and still aborts the rule's cycle: an error is not an empty result.

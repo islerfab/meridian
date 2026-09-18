@@ -2,7 +2,7 @@
 title: CLI reference
 weight: 2
 icon: terminal
-description: Every meridian command and flag.
+description: Every Meridian command and flag.
 seeAlso:
   "meridian run":
     - text: "metrics & health"

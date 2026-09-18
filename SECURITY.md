@@ -18,7 +18,7 @@ say so in the first line and it moves to the front.
 
 Pre-1.0, only the latest release gets fixes. There are no backport branches.
 
-## What meridian does with your credentials
+## What Meridian does with your credentials
 
 - **The config holds the *names* of environment variables, never secret
   values.** `rules.yaml` is meant to be committed to Git, and nothing in it is
@@ -39,13 +39,13 @@ Pre-1.0, only the latest release gets fixes. There are no backport branches.
 - **`meridian validate` touches no credential and no provider**, which is why
   it's safe to run in CI on every config change.
 
-The scope meridian needs is read and write on the calendars named in its
+The scope Meridian needs is read and write on the calendars named in its
 config. It requests nothing else and talks to no service other than your
 configured providers.
 
 ## Out of scope
 
-These aren't vulnerabilities in meridian, though they may still ruin your day:
+These aren't vulnerabilities in Meridian, though they may still ruin your day:
 
 - Anyone with read access to the Kubernetes Secret, or to `.env`, has your
   calendar credentials. Protect them the way you'd protect any other secret.
