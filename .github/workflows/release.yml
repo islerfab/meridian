@@ -96,10 +96,6 @@ jobs:
       - name: Publish the Artifact Hub ownership metadata
         run: |
           set -euo pipefail
-          if grep -q REPLACE_WITH_REPOSITORY_ID deploy/artifacthub-repo.yml; then
-            echo "::warning::artifacthub-repo.yml still carries the placeholder ID — the listing stays unverified until it is filled in."
-            exit 0
-          fi
           # oras reads ~/.docker/config.json, which the ko login step wrote.
           # The layer is named by the file, so it is pushed from its own directory.
           mkdir -p /tmp/artifacthub && cp -f deploy/artifacthub-repo.yml /tmp/artifacthub/
