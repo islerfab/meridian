@@ -49,7 +49,7 @@ rules:
 
 That's the whole surface: accounts, the calendars they expose, and rules pointing one at another. `meridian validate` checks it without touching a credential or a provider, so it runs in CI on every change.
 
-Filters also take a [CEL](https://cel.dev/) predicate (`when: 'event.durationMinutes >= 30'`), and the three string transforms take Go templates (`title: "// {{ .Title }}"`). Worked examples are in [Write sync rules](https://islerfab.github.io/meridian/guides/write-rules/).
+Filters also take a [CEL](https://cel.dev/) predicate (`when: 'event.durationMinutes >= 30'`), and the three string transforms take Go templates (`title: "» {{ .Title }}"`). Worked examples are in [Write sync rules](https://islerfab.github.io/meridian/guides/write-rules/).
 
 ## Is this for you?
 
