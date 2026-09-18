@@ -59,6 +59,11 @@ menu:
 params:
   description: "Kubernetes-first, declarative calendar sync."
 
+  # Link previews for the site. Same card GitHub serves for the repo, so a
+  # link to the docs and a link to the source unfurl identically.
+  images:
+    - images/social-preview.png
+
   externalLinkDecoration: true
 
   navbar:
