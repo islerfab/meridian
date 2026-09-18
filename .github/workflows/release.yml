@@ -75,7 +75,36 @@ jobs:
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
       - name: Publish Helm chart as an OCI artifact
         run: |
+          set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
           echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          # helm package rewrites version and appVersion but never annotations,
+          # and Artifact Hub scans the image tag named in this one.
+          sed -i "s|ghcr.io/islerfab/meridian:APP_VERSION|ghcr.io/islerfab/meridian:$VERSION|" deploy/meridian/Chart.yaml
           helm package deploy/meridian --version "$VERSION" --app-version "$VERSION" --destination /tmp/chart-out
-          helm push "/tmp/chart-out/meridian-$VERSION.tgz" oci://ghcr.io/islerfab/charts
+          helm push "/tmp/chart-out/meridian-$VERSION.tgz" oci://ghcr.io/islerfab/charts 2>&1 | tee /tmp/chart-push.log
+          echo "CHART_DIGEST=$(awk '/^Digest: /{print $2}' /tmp/chart-push.log)" >> "$GITHUB_ENV"
+
+      # By digest, for the same reason the image is: a tag can be moved later,
+      # a digest can't.
+      - name: Sign the chart
+        run: cosign sign --yes "ghcr.io/islerfab/charts/meridian@${CHART_DIGEST}"
+
+      # Proves to Artifact Hub that this repository owns the listing. Republished
+      # every release so the tag survives a registry that loses it, and because
+      # a one-time manual push is a thing nobody remembers a year later.
+      - name: Publish the Artifact Hub ownership metadata
+        run: |
+          set -euo pipefail
+          if grep -q REPLACE_WITH_REPOSITORY_ID deploy/artifacthub-repo.yml; then
+            echo "::warning::artifacthub-repo.yml still carries the placeholder ID — the listing stays unverified until it is filled in."
+            exit 0
+          fi
+          # oras reads ~/.docker/config.json, which the ko login step wrote.
+          # The layer is named by the file, so it is pushed from its own directory.
+          mkdir -p /tmp/artifacthub && cp -f deploy/artifacthub-repo.yml /tmp/artifacthub/
+          cd /tmp/artifacthub
+          go run oras.land/oras/cmd/oras@v1.3.4 push \
+            ghcr.io/islerfab/charts/meridian:artifacthub.io \
+            --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml \
+            artifacthub-repo.yml:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml

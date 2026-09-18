@@ -1,0 +1,9 @@
+# Ownership metadata for the Artifact Hub listing, pushed to the chart's OCI
+# repository under the `artifacthub.io` tag by release.yml. Without it the
+# listing is anonymous: anyone could have added it.
+#
+# The ID is generated when the repository is added on Artifact Hub and is
+# visible in its settings there. Adding `owners` (name plus the email of the
+# Artifact Hub account) additionally allows claiming a listing somebody else
+# created.
+repositoryID: REPLACE_WITH_REPOSITORY_ID

@@ -74,6 +74,16 @@ cosign verify ghcr.io/islerfab/meridian:vX.Y.Z \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
+The Helm chart is signed the same way, by digest, and takes the same flags:
+
+```bash
+cosign verify ghcr.io/islerfab/charts/meridian:X.Y.Z \
+  --certificate-identity-regexp '^https://github\.com/islerfab/meridian/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+Note the chart version carries no `v` prefix; the image tag does.
+
 `go tool task vuln` runs [govulncheck](https://go.dev/blog/govulncheck) against
 the module. CI runs it on every push, and a scheduled job runs it weekly so a
 quiet month doesn't mean an unnoticed advisory. It's call-graph aware, so it
