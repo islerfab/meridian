@@ -54,6 +54,14 @@ Work down this list in order.
 4. **Is the event inside the sync window?** Only events overlapping `[now - 1 day, now + 90 days]` are considered. Something nine months out is invisible until it drifts closer.
 5. **Are they birthdays?** Google injects contacts' birthdays into `primary`, and Meridian skips them by default.
 
+## Declined meetings are still being copied
+
+`skipDeclined` and `transparentForRSVP` both need Meridian to know which attendee is you, and on CalDAV that comes from `account.identities`. A missing list is caught when the config loads. A list holding the wrong address is not: it parses, it matches nothing, and every event reads as one you were never invited to.
+
+Run `meridian identities <account>` and compare its answer with what you configured. A typo, or the address you sign in with where the server expects a different one, both produce silence rather than an error.
+
+Google sources can't hit this, since the API marks your own entry and `identities` isn't used there.
+
 ## Copies keep coming back after I delete them
 
 Working as intended. Shadows are derived state, so a missing one reads as damage and the next cycle repairs it.

@@ -200,6 +200,56 @@
       ]
     },
     {
+      "name": "identities",
+      "path": "meridian identities",
+      "usage": "Ask a CalDAV server which addresses it knows this account by",
+      "description": "Reading your own RSVP off an invitation means picking your entry out of the attendee\nlist. Google marks it; iCalendar has no equivalent, so a CalDAV account has to name its\nown addresses in `identities` before filter.skipDeclined or transform.transparentForRSVP\ncan work.\n\nThis asks the server directly, via the calendar-user-address-set property, and prints the\nanswer ready to paste. It also lists the account's calendars and their paths, which a\nconfig needs anyway and which providers tend to bury in a web UI.\n\nRun it against a configured account by name, or before any config exists by passing\n--endpoint with credentials in the environment or a local .env. Nothing is written: the\nconfig is usually a ConfigMap in git.",
+      "argsUsage": "[account]",
+      "flags": [
+        {
+          "names": [
+            "--config"
+          ],
+          "default": "rules.yaml",
+          "env": [
+            "MERIDIAN_CONFIG"
+          ],
+          "usage": "path to rules.yaml",
+          "required": false
+        },
+        {
+          "names": [
+            "--endpoint"
+          ],
+          "env": [
+            "MERIDIAN_CALDAV_ENDPOINT"
+          ],
+          "usage": "CalDAV base URL, to run without a config file",
+          "required": false
+        },
+        {
+          "names": [
+            "--username"
+          ],
+          "env": [
+            "MERIDIAN_CALDAV_USERNAME"
+          ],
+          "usage": "CalDAV username (prefer MERIDIAN_CALDAV_USERNAME in a .env)",
+          "required": false
+        },
+        {
+          "names": [
+            "--password"
+          ],
+          "env": [
+            "MERIDIAN_CALDAV_PASSWORD"
+          ],
+          "usage": "CalDAV password (prefer MERIDIAN_CALDAV_PASSWORD in a .env)",
+          "required": false
+        }
+      ]
+    },
+    {
       "name": "version",
       "path": "meridian version",
       "usage": "Print build version information",

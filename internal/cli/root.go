@@ -26,6 +26,7 @@ func NewRootCmd() *cli.Command {
 			newValidateCmd(),
 			newWipeCmd(),
 			newOAuthCmd(),
+			newIdentitiesCmd(),
 			newVersionCmd(),
 		},
 	}

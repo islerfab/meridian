@@ -34,7 +34,7 @@ Settings → Add calendar → Create new calendar. Then open Settings → your n
 {{< tab name="CalDAV" >}}
 Create the calendar in your provider's web UI, then find its **collection path**. Most providers show this in the calendar's sharing or CalDAV settings; it looks like `/calendars/you@example.com/scratch/`.
 
-If your provider only shows a full URL, the path is everything after the host.
+If your provider only shows a full URL, the path is everything after the host. If it doesn't show one at all, the next step has Meridian list them for you.
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -69,6 +69,14 @@ You need your CalDAV endpoint, your username, and a password. If your provider r
 MERIDIAN_CALDAV_USERNAME="you@example.com"
 MERIDIAN_CALDAV_PASSWORD="app-specific-password"
 ```
+
+With those in place, have the server answer the rest for you:
+
+```bash
+meridian identities --endpoint https://caldav.example.com/dav/
+```
+
+It lists every calendar on the account with its collection path, which saves the hunt in the previous step, and prints the address the server matches against invitations. Keep that address if you ever want to filter on whether you accepted a meeting: it goes in `identities`, which is what `filter.skipDeclined` needs on CalDAV.
 {{< /tab >}}
 {{< /tabs >}}
 
