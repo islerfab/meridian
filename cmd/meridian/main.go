@@ -1,4 +1,4 @@
-// Command meridian is a K8s-native declarative calendar sync engine.
+// Command meridian is a Kubernetes-first, declarative calendar sync engine.
 package main
 
 import (

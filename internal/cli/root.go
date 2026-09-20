@@ -18,7 +18,7 @@ func Execute(ctx context.Context, args []string) error {
 func NewRootCmd() *cli.Command {
 	return &cli.Command{
 		Name:  "meridian",
-		Usage: "K8s-native declarative calendar sync",
+		Usage: "Kubernetes-first, declarative calendar sync",
 		Description: "Meridian mirrors events between calendars as transformed shadow copies,\n" +
 			"driven by declarative rules and stateless snapshot reconciliation.",
 		Commands: []*cli.Command{
