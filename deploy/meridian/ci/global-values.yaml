@@ -1,0 +1,11 @@
+# Values an umbrella chart injects into this one: `global` from the parent's
+# own values, `enabled` from a `condition:` on the dependency. Neither is read
+# by any template here — this fixture exists so that closing the schema with
+# additionalProperties can't quietly make meridian undeployable as a subchart.
+global:
+  imageRegistry: registry.example.com
+  anythingTheParentDefines: true
+enabled: true
+
+credentials:
+  existingSecret: meridian-credentials

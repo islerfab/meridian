@@ -1,10 +1,10 @@
-// Command gendocs regenerates the code-derived data files the docs site
-// renders its reference pages from, so those pages can never silently
-// drift from the thing they describe — and, just as importantly, can't
-// be casually hand-edited: docs/content/reference/cli.md and
-// configuration.md are each just front matter plus a single shortcode
-// call, and the actual facts live in docs/data/*.json. Nobody opening a
-// JSON array mistakes it for prose to fix a typo in.
+// Command gendocs regenerates the code-derived files that describe
+// meridian to the outside world, so they can never silently drift from
+// the thing they describe — and, just as importantly, can't be casually
+// hand-edited: docs/content/reference/cli.md and configuration.md are
+// each just front matter plus a single shortcode call, and the actual
+// facts live in docs/data/*.json. Nobody opening a JSON array mistakes it
+// for prose to fix a typo in.
 //
 //   - cli.json is walked from the real *cli.Command tree built by
 //     internal/cli (the same tree --help renders from).
@@ -13,6 +13,11 @@
 //     CELEvent for the CEL schema).
 //   - metrics.json is parsed from internal/sync/metrics.go's own
 //     prometheus.XxxOpts Name/Help declarations.
+//   - values.schema.json is the Helm chart's values schema: a
+//     hand-written base for the chart's own plumbing, with the whole
+//     config block generated from the same config.go structs config.json
+//     comes from. It is the one output that isn't a docs data file, and
+//     it lives in deploy/meridian rather than docs/data.
 //
 // Rendering (headings, per-item detail boxes, cross-page "see also"
 // links) lives entirely in Hugo templates
@@ -73,10 +78,15 @@ func buildDataFiles() (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("metrics.json: %w", err)
 	}
+	schema, err := genValuesSchema()
+	if err != nil {
+		return nil, fmt.Errorf("values.schema.json: %w", err)
+	}
 	return map[string]string{
 		dataDir + "/cli.json":     cli,
 		dataDir + "/config.json":  config,
 		dataDir + "/metrics.json": metrics,
+		valuesSchemaPath:          schema,
 	}, nil
 }
 

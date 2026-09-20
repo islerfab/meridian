@@ -31,7 +31,7 @@ The summary; `design.md` has the full versions and the reasoning.
 - `golangci-lint` is expected on `PATH`.
 - The CLI framework is urfave/cli v3, isolated in `internal/cli`.
 - Module path is `github.com/islerfab/meridian`.
-- Docs are a Hugo site under `docs/`, built through the Task targets. `docs:gen` regenerates `docs/data/*.json` from the real source, so anything that renders the site must go through those targets rather than invoking `hugo` directly, or it publishes stale reference pages.
+- Docs are a Hugo site under `docs/`, built through the Task targets. `docs:gen` regenerates `docs/data/*.json` from the real source, so anything that renders the site must go through those targets rather than invoking `hugo` directly, or it publishes stale reference pages. The same target also generates the chart's `deploy/meridian/values.schema.json` — its `config` half comes from the `internal/config` structs, so a renamed config field is a `docs:gen:check` failure rather than a chart that accepts a key meridian no longer reads.
 - Releases run GoReleaser on `v*` tags: binaries, a GitHub release, and an OCI image built by integrated ko (no Dockerfile) onto `cgr.dev/chainguard/static`, pushed to `ghcr.io/islerfab/meridian` for linux/arm64 and amd64. Check the pipeline locally with `goreleaser release --snapshot --clean --skip=ko`, dropping `--skip=ko` if a container runtime is available.
 
 ## Versioning

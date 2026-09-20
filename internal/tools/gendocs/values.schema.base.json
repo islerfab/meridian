@@ -1,0 +1,147 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "meridian Helm chart values",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "global": {
+      "type": "object",
+      "description": "Injected into every subchart by a parent chart. No template in this chart reads it; declared so that umbrella charts validate."
+    },
+    "enabled": {
+      "type": "boolean",
+      "description": "Injected by a parent chart's `condition:`. Declared for the same reason as `global`."
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string",
+          "description": "Empty defaults to the chart appVersion. Quoted: an unquoted 1.5 would arrive as a float and render as 1.5 or 1."
+        },
+        "pullPolicy": {
+          "enum": ["Always", "IfNotPresent", "Never"]
+        }
+      }
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "nameOverride": {
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "type": "string"
+    },
+    "existingConfigMap": {
+      "type": "string",
+      "description": "Name of a ConfigMap with a `rules.yaml` key, managed outside this chart. Set this and `config` is ignored."
+    },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingSecret": {
+          "type": "string",
+          "description": "Name of an existing Secret whose keys are the env var NAMES referenced by rules.yaml. Required."
+        }
+      }
+    },
+    "extraEnv": {
+      "type": "array",
+      "description": "Core v1 EnvVar entries, passed to the container verbatim.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "listen": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Port for /metrics, /healthz and /readyz. Bound on [::] (dual-stack)."
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "publishNotReadyAddresses": {
+          "type": "boolean"
+        }
+      }
+    },
+    "serviceMonitor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "interval": {
+          "type": "string"
+        },
+        "scrapeTimeout": {
+          "type": "string"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Extra labels for Prometheus-operator selector matching."
+        }
+      }
+    },
+    "resources": {
+      "type": "object"
+    },
+    "podSecurityContext": {
+      "type": "object"
+    },
+    "securityContext": {
+      "type": "object"
+    },
+    "podAnnotations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "podLabels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "priorityClassName": {
+      "type": "string"
+    },
+    "nodeSelector": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "tolerations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "affinity": {
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,406 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "config": {
+      "additionalProperties": false,
+      "description": "The root of rules.yaml: instance identity, sync interval,\noperator notifications, provider accounts, and sync rules. Parsing is\nstrict — unknown fields are startup errors — and secrets never appear\nhere: account fields name environment variable identifiers, resolved at\nstartup from wherever the deployment sources them (a Kubernetes Secret,\n.env locally).",
+      "properties": {
+        "accounts": {
+          "description": "The set of provider connections rules draw their\ncalendars from.",
+          "items": {
+            "$ref": "#/definitions/configAccount"
+          },
+          "type": "array"
+        },
+        "instance": {
+          "description": "This Meridian instance's identity, embedded in every\nownership marker it writes. Must be unique across any instances\nsharing a destination, and stable for the instance's lifetime —\nchanging it orphans every shadow the instance previously wrote (they\nbecome invisible to it; `meridian wipe --instance \u003cold\u003e` cleans them\nup).",
+          "type": "string"
+        },
+        "interval": {
+          "default": "5m",
+          "description": "The time between reconciliation cycles.",
+          "type": "string"
+        },
+        "notifications": {
+          "$ref": "#/definitions/configNotifications",
+          "description": "The operator notification channel; leaving it unset\ndisables notifications without disabling the metrics and logs that\ncover the same events."
+        },
+        "rules": {
+          "description": "The set of one-way mirrors this instance reconciles. At\nleast one is required.",
+          "items": {
+            "$ref": "#/definitions/configRule"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "configAccount": {
+      "additionalProperties": false,
+      "description": "One provider connection. Type-specific fields are validated\nper type; setting a field that belongs to the other type is a startup\nerror.",
+      "properties": {
+        "calendars": {
+          "description": "The set of this account's calendars that rules may\nreference. At least one is required per account.",
+          "items": {
+            "$ref": "#/definitions/configCalendar"
+          },
+          "type": "array"
+        },
+        "clientIDEnv": {
+          "description": "Names the env var holding the Google OAuth client ID.",
+          "type": "string"
+        },
+        "clientSecretEnv": {
+          "description": "Names the env var holding the Google OAuth client\nsecret.",
+          "type": "string"
+        },
+        "endpoint": {
+          "description": "The CalDAV server's base URL.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The account's unique name, referenced in rules as\n`\u003caccount\u003e/\u003ccalendar\u003e`.",
+          "type": "string"
+        },
+        "passwordEnv": {
+          "description": "Names the env var holding the CalDAV Basic Auth password\n(an app-specific password, if the provider requires 2FA).",
+          "type": "string"
+        },
+        "refreshTokenEnv": {
+          "description": "Names the env var holding a long-lived Google OAuth\nrefresh token. Get one via `meridian oauth`.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Selects the provider: google or caldav.",
+          "enum": [
+            "caldav",
+            "google"
+          ],
+          "type": "string"
+        },
+        "usernameEnv": {
+          "description": "Names the env var holding the CalDAV Basic Auth username.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "configCalendar": {
+      "additionalProperties": false,
+      "description": "Names one calendar of an account. The logical reference\nused in rules is `\u003caccount\u003e/\u003ccalendar\u003e`.",
+      "properties": {
+        "id": {
+          "description": "The Google Calendar ID: \"primary\", or\n\"xxxx@group.calendar.google.com\" from Settings -\u003e Integrate calendar.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Unique within the account; combines with the account name\nas `\u003caccount\u003e/\u003cname\u003e` in rules.",
+          "type": "string"
+        },
+        "path": {
+          "description": "The CalDAV collection path.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "configFilter": {
+      "additionalProperties": false,
+      "description": "Selects source events. All set fields AND together: an\nevent must satisfy every one to match.",
+      "properties": {
+        "skipAllDay": {
+          "default": false,
+          "description": "Skips all-day events entirely.",
+          "type": "boolean"
+        },
+        "skipTransparent": {
+          "default": false,
+          "description": "Skips events marked transparent (\"free\") at the\nsource.",
+          "type": "boolean"
+        },
+        "timezone": {
+          "description": "An IANA zone name, required whenever Window or Weekdays\nis set — event times are UTC instants internally, so this is what\nmakes the wall-clock window meaningful.",
+          "type": "string"
+        },
+        "weekdays": {
+          "description": "A subset of mon..sun. All-day events are matched by\ntheir date against this list alone — never subject to Window.",
+          "items": {
+            "enum": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat",
+              "sun"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "when": {
+          "description": "A CEL expression over the CELEvent schema, ANDed with every\nother set field. Compiled and type-checked at config load — a bad\nexpression is a startup error, never a mid-sync surprise.",
+          "type": "string"
+        },
+        "window": {
+          "description": "A daily time-of-day range (\"HH:MM-HH:MM\", must not cross\nmidnight), evaluated in Timezone. An event matches if it overlaps\nthe window on a matching weekday.",
+          "pattern": "^([01][0-9]|2[0-3]):([0-5][0-9])-([01][0-9]|2[0-3]):([0-5][0-9])$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "configNotifications": {
+      "additionalProperties": false,
+      "description": "Configures the operator notification channel.",
+      "properties": {
+        "discordWebhookURLEnv": {
+          "description": "Names the env var holding a Discord webhook URL.\nEmpty/unset disables notifications; guard triggers and auth failures\nstill emit metrics and logs either way.",
+          "type": "string"
+        },
+        "massDeleteFraction": {
+          "default": 0.5,
+          "description": "Triggers the mass-delete guard\n(meridian_guard_triggers_total{guard=\"mass_delete\"} plus a\nnotification) when a rule deletes more than this fraction of its\nshadows in one cycle. 0 disables the guard.",
+          "maximum": 1,
+          "minimum": 0,
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "configRule": {
+      "additionalProperties": false,
+      "description": "One sync rule (compiled into sync.Rule). A destination\ncalendar can be targeted by any number of rules simultaneously —\nownership is scoped by instance + rule ID, so rules never fight over\neach other's shadows.",
+      "properties": {
+        "filter": {
+          "$ref": "#/definitions/configFilter",
+          "description": "Selects which source events this rule mirrors. Unset matches\nevery event in the sync window."
+        },
+        "from": {
+          "description": "The source `\u003caccount\u003e/\u003ccalendar\u003e` reference; must be a\nconfigured calendar.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Unique across the whole config, embedded in every shadow's\nownership marker. Renaming a rule is equivalent to deleting it and\ncreating a new one: old shadows get swept as orphans, new ones get\ncreated fresh.",
+          "type": "string"
+        },
+        "to": {
+          "description": "Lists destination `\u003caccount\u003e/\u003ccalendar\u003e` references; none may\nequal From.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "transform": {
+          "$ref": "#/definitions/configTransform",
+          "description": "Computes the shadow's content. Unset mirrors every field\nfaithfully."
+        }
+      },
+      "type": "object"
+    },
+    "configTransform": {
+      "additionalProperties": false,
+      "description": "Computes the shadow's content. Every field left unset\ncopies the corresponding source value (faithful mirror by default); it\nonly needs to name what should differ. Deliberately not\nexpression-powered the way filter.when is: a bad filter mis-selects\nevents, but a bad transform corrupts calendar data, so string fields get\ntemplating and nothing more.",
+      "properties": {
+        "color": {
+          "description": "Has no source value to copy, so unset means no override at\nall, not \"mirror the source's color\". Encoding is\ndestination-provider-specific — see the rules cookbook.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "Follows the same rules as Title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "location": {
+          "description": "Follows the same rules as Title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reminders": {
+          "description": "A list of minutes before start; an empty list means no\nreminders. Unset copies the source's reminders.",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "A literal string or a Go template\n(https://pkg.go.dev/text/template) over the source event; the\nliteral \"drop\" empties it instead of copying or templating it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "transparent": {
+          "description": "Forces the shadow's opacity regardless of the source\nevent's own transparency; unset copies the source's value.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "properties": {
+    "affinity": {
+      "type": "object"
+    },
+    "config": {
+      "$ref": "#/definitions/config",
+      "description": "Meridian's rules.yaml, rendered verbatim into a ConfigMap. Ignored when existingConfigMap is set. Required fields and cross-field rules are validated by meridian at startup, not here."
+    },
+    "credentials": {
+      "additionalProperties": false,
+      "properties": {
+        "existingSecret": {
+          "description": "Name of an existing Secret whose keys are the env var NAMES referenced by rules.yaml. Required.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "enabled": {
+      "description": "Injected by a parent chart's `condition:`. Declared for the same reason as `global`.",
+      "type": "boolean"
+    },
+    "existingConfigMap": {
+      "description": "Name of a ConfigMap with a `rules.yaml` key, managed outside this chart. Set this and `config` is ignored.",
+      "type": "string"
+    },
+    "extraEnv": {
+      "description": "Core v1 EnvVar entries, passed to the container verbatim.",
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "fullnameOverride": {
+      "type": "string"
+    },
+    "global": {
+      "description": "Injected into every subchart by a parent chart. No template in this chart reads it; declared so that umbrella charts validate.",
+      "type": "object"
+    },
+    "image": {
+      "additionalProperties": false,
+      "properties": {
+        "pullPolicy": {
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        },
+        "repository": {
+          "type": "string"
+        },
+        "tag": {
+          "description": "Empty defaults to the chart appVersion. Quoted: an unquoted 1.5 would arrive as a float and render as 1.5 or 1.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "imagePullSecrets": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "listen": {
+      "additionalProperties": false,
+      "properties": {
+        "port": {
+          "description": "Port for /metrics, /healthz and /readyz. Bound on [::] (dual-stack).",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "nameOverride": {
+      "type": "string"
+    },
+    "nodeSelector": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "podAnnotations": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "podLabels": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "podSecurityContext": {
+      "type": "object"
+    },
+    "priorityClassName": {
+      "type": "string"
+    },
+    "resources": {
+      "type": "object"
+    },
+    "securityContext": {
+      "type": "object"
+    },
+    "service": {
+      "additionalProperties": false,
+      "properties": {
+        "publishNotReadyAddresses": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "serviceMonitor": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "interval": {
+          "type": "string"
+        },
+        "labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Extra labels for Prometheus-operator selector matching.",
+          "type": "object"
+        },
+        "scrapeTimeout": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "tolerations": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "title": "meridian Helm chart values",
+  "type": "object"
+}

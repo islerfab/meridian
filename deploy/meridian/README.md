@@ -77,6 +77,18 @@ credential, so rules can be verified in CI before they reach a cluster.
 `helm show values oci://ghcr.io/islerfab/charts/meridian` prints the file
 itself, comments included.
 
+The chart ships a `values.schema.json`, so a misspelled key is an install-time
+error naming the offending path rather than a silent fall back to the default.
+It covers the whole `config` block too, generated from the same Go types
+meridian parses `rules.yaml` with. Requiredness and cross-field rules are not
+in it — meridian validates those at startup, where the message can be a useful
+one. Point an editor at the schema and the same file gets completion and
+hover docs:
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/islerfab/meridian/main/deploy/meridian/values.schema.json
+```
+
 ## Observability
 
 The pod exposes Prometheus metrics on `listen.port`. Per-rule counters for

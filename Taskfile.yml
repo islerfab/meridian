@@ -79,12 +79,12 @@ tasks:
       - '{{.HUGO}} server --buildDrafts --disableFastRender'
 
   docs:gen:
-    desc: Regenerate the code-derived docs fragments (CLI flags, ...) from the real source
+    desc: Regenerate everything derived from the real source — docs fragments (CLI flags, ...) and the chart's values.schema.json
     cmds:
       - go run ./internal/tools/gendocs
 
   docs:gen:check:
-    desc: Fail if the committed generated docs fragments have drifted from the code
+    desc: Fail if the committed generated files have drifted from the code
     cmds:
       - go run ./internal/tools/gendocs -check
 
@@ -109,6 +109,12 @@ tasks:
       - helm template meridian deploy/meridian -f deploy/meridian/ci/test-values.yaml > /dev/null
       - helm template meridian deploy/meridian -f deploy/meridian/ci/test-values.yaml --set existingConfigMap=external-rules > /dev/null
       - helm template meridian deploy/meridian -f deploy/meridian/ci/test-values.yaml --show-only templates/configmap.yaml | go run ./cmd/meridian validate --from-configmap --config /dev/stdin
+      - helm template meridian deploy/meridian -f deploy/meridian/ci/global-values.yaml > /dev/null
+      - cmd: |
+          if helm template meridian deploy/meridian -f deploy/meridian/ci/test-values.yaml -f deploy/meridian/ci/invalid-values.yaml > /dev/null 2>&1; then
+            echo "values.schema.json accepted deploy/meridian/ci/invalid-values.yaml — the schema is no longer being enforced" >&2
+            exit 1
+          fi
 
   ci:
     desc: Everything CI runs — vet, lint, vuln, test, build, helm, docs

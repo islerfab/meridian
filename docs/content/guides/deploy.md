@@ -92,6 +92,20 @@ helm template meridian deploy/meridian -f my-rules-values.yaml --show-only templ
 
 This runs the same strict parse and rule compilation that `run` performs at startup, without touching a single credential. It's cheap enough to wire into CI on every values change, and it catches the whole class of mistakes that would otherwise surface as a `CrashLoopBackOff`.
 
+Two layers are at work here, and they catch different things. Helm checks your values against the chart's `values.schema.json` before it renders anything, so a misspelled key fails with the path that's wrong:
+
+```text
+at '/config/rules/0': additional properties 'form' not allowed
+```
+
+What a schema can't judge is whether `from` names a calendar you actually configured. That's the job of the `validate` round-trip above.
+
+The same schema drives editor completion, if you point the YAML language server at it from the top of your values file:
+
+```yaml {filename="my-rules-values.yaml"}
+# yaml-language-server: $schema=https://raw.githubusercontent.com/islerfab/meridian/main/deploy/meridian/values.schema.json
+```
+
 ## Observability wiring
 
 The pod serves `/metrics`, `/healthz` and `/readyz` on `listen.port`, default `8080`.

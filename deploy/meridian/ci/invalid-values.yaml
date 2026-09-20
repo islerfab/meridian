@@ -1,0 +1,10 @@
+# Deliberately wrong, in the two ways the schema exists to catch: a
+# misspelled chart key, and a misspelled field inside a rule. `task helm`
+# asserts that rendering with this file FAILS — a green run here would mean
+# values.schema.json had stopped being enforced.
+repicaCount: 2
+
+config:
+  rules:
+    - id: work-to-personal
+      form: work/main

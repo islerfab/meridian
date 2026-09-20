@@ -33,9 +33,16 @@ type Config struct {
 	// Interval is the time between reconciliation cycles.
 	Interval string `yaml:"interval" doc:"optional,default=5m"`
 
+	// Notifications is the operator notification channel; leaving it unset
+	// disables notifications without disabling the metrics and logs that
+	// cover the same events.
 	Notifications Notifications `yaml:"notifications"`
-	Accounts      []Account     `yaml:"accounts"`
-	Rules         []RuleConfig  `yaml:"rules"`
+	// Accounts is the set of provider connections rules draw their
+	// calendars from.
+	Accounts []Account `yaml:"accounts"`
+	// Rules is the set of one-way mirrors this instance reconciles. At
+	// least one is required.
+	Rules []RuleConfig `yaml:"rules"`
 
 	// IntervalDuration is the parsed Interval (set by Load).
 	IntervalDuration time.Duration `yaml:"-"`
@@ -80,6 +87,8 @@ type Account struct {
 	// refresh token. Get one via `meridian oauth`.
 	RefreshTokenEnv string `yaml:"refreshTokenEnv" doc:"required,google"`
 
+	// Calendars is the set of this account's calendars that rules may
+	// reference. At least one is required per account.
 	Calendars []CalendarConfig `yaml:"calendars"`
 }
 
