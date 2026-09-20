@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -13,7 +14,7 @@ func mustFilter(t *testing.T, fc *FilterConfig) func(model.Event) bool {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, err := compileFilter(env, fc)
+	f, _, err := compileFilter(env, fc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +193,7 @@ func TestCELVisibility(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prg, err := compileWhen(env, `event.visibility == "private"`)
+	prg, _, err := compileWhen(env, `event.visibility == "private"`)
 	if err != nil {
 		t.Fatalf("compiling a visibility expression: %v", err)
 	}
@@ -204,5 +205,183 @@ func TestCELVisibility(t *testing.T) {
 	}
 	if out.Value() != true {
 		t.Errorf("event.visibility did not match a private event")
+	}
+}
+
+func TestFilterSkipDeclined(t *testing.T) {
+	f := mustFilter(t, &FilterConfig{SkipDeclined: true})
+	ev := timed("2026-08-18T12:00:00Z", "2026-08-18T13:00:00Z")
+
+	for _, rsvp := range []model.RSVP{
+		model.RSVPNone, model.RSVPNeedsAction, model.RSVPAccepted, model.RSVPTentative,
+	} {
+		ev.RSVP = rsvp
+		if !f(ev) {
+			t.Errorf("rsvp %q was skipped, want matched", rsvp)
+		}
+	}
+	ev.RSVP = model.RSVPDeclined
+	if f(ev) {
+		t.Error("declined event matched, want skipped")
+	}
+}
+
+// skipDeclined must not become "skip anything not accepted": most events
+// carry no RSVP at all and have to pass through untouched.
+func TestFilterSkipDeclinedLeavesNonInvitationsAlone(t *testing.T) {
+	f := mustFilter(t, &FilterConfig{SkipDeclined: true})
+	ev := timed("2026-08-18T12:00:00Z", "2026-08-18T13:00:00Z")
+	if !f(ev) {
+		t.Error("event with no RSVP was skipped")
+	}
+}
+
+func TestCELExposesRSVP(t *testing.T) {
+	f := mustFilter(t, &FilterConfig{When: `event.rsvp == "accepted"`})
+	ev := timed("2026-08-18T12:00:00Z", "2026-08-18T13:00:00Z")
+	ev.RSVP = model.RSVPAccepted
+	if !f(ev) {
+		t.Error("accepted event did not match")
+	}
+	ev.RSVP = model.RSVPNeedsAction
+	if f(ev) {
+		t.Error("needsAction event matched an accepted-only expression")
+	}
+}
+
+func TestSelectsEventField(t *testing.T) {
+	env, err := newCELEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := map[string]bool{
+		`event.rsvp == "declined"`:                true,
+		`event.title != "" && event.rsvp != ""`:   true,
+		`event.title == "rsvp"`:                   false,
+		`event.status == "confirmed"`:             false,
+		`event.attendees.exists(a, a == "x@y.z")`: false,
+	}
+	for expr, want := range cases {
+		_, usesRSVP, err := compileWhen(env, expr)
+		if err != nil {
+			t.Fatalf("compile %q: %v", expr, err)
+		}
+		if usesRSVP != want {
+			t.Errorf("compileWhen(%q) usesRSVP = %v, want %v", expr, usesRSVP, want)
+		}
+	}
+}
+
+func TestRSVPOnCalDAVWithoutIdentitiesIsStartupError(t *testing.T) {
+	cfg := func(identities []string, filter *FilterConfig, from string) *Config {
+		return &Config{
+			Instance: "test",
+			Accounts: []Account{{
+				Name: "dav", Type: "caldav", Endpoint: "https://dav.example.com",
+				UsernameEnv: "U", PasswordEnv: "P", Identities: identities,
+				Calendars: []CalendarConfig{{Name: "main", Path: "/c/"}},
+			}, {
+				Name: "goog", Type: "google",
+				ClientIDEnv: "I", ClientSecretEnv: "S", RefreshTokenEnv: "R",
+				Calendars: []CalendarConfig{{Name: "main", ID: "primary"}},
+			}},
+			Rules: []RuleConfig{{
+				ID: "r", From: from, To: []string{"dav/main", "goog/main"}[:1], Filter: filter,
+			}},
+		}
+	}
+	skipDeclined := func() *FilterConfig { return &FilterConfig{SkipDeclined: true} }
+	viaCEL := func() *FilterConfig { return &FilterConfig{When: `event.rsvp != "declined"`} }
+
+	cases := []struct {
+		name    string
+		cfg     *Config
+		wantErr bool
+	}{
+		{"skipDeclined, caldav source, no identities", cfg(nil, skipDeclined(), "dav/main"), true},
+		{"CEL rsvp, caldav source, no identities", cfg(nil, viaCEL(), "dav/main"), true},
+		{"skipDeclined, caldav source, identities set", cfg([]string{"me@example.com"}, skipDeclined(), "dav/main"), false},
+		// Google needs no identities: the API marks the owner's entry.
+		{"skipDeclined, google source", cfg(nil, skipDeclined(), "goog/main"), false},
+		{"no rsvp use at all", cfg(nil, &FilterConfig{SkipAllDay: true}, "dav/main"), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := CompileRules(tc.cfg)
+			if tc.wantErr && err == nil {
+				t.Fatal("want a startup error, got nil")
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("want no error, got %v", err)
+			}
+			if tc.wantErr && !strings.Contains(err.Error(), "identities") {
+				t.Errorf("error should name identities, got %v", err)
+			}
+		})
+	}
+}
+
+func TestTransparentForRSVP(t *testing.T) {
+	transform := func(names []string) func(model.Event) model.ShadowContent {
+		t.Helper()
+		f, err := compileTransform(RuleConfig{
+			Transform: &TransformConfig{TransparentForRSVP: names},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	apply := transform([]string{"needsAction", "tentative"})
+
+	ev := timed("2026-08-18T12:00:00Z", "2026-08-18T13:00:00Z")
+	for _, tc := range []struct {
+		rsvp model.RSVP
+		want bool
+	}{
+		{model.RSVPNeedsAction, true},
+		{model.RSVPTentative, true},
+		{model.RSVPAccepted, false},
+		{model.RSVPDeclined, false},
+	} {
+		ev.RSVP = tc.rsvp
+		if got := apply(ev).Transparent; got != tc.want {
+			t.Errorf("rsvp %q: Transparent = %v, want %v", tc.rsvp, got, tc.want)
+		}
+	}
+}
+
+// The field frees a slot, it never claims one: a response that isn't listed
+// keeps whatever the source said rather than being forced opaque.
+func TestTransparentForRSVPKeepsSourceValueWhenUnlisted(t *testing.T) {
+	f, err := compileTransform(RuleConfig{
+		Transform: &TransformConfig{TransparentForRSVP: []string{"needsAction"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev := timed("2026-08-18T12:00:00Z", "2026-08-18T13:00:00Z")
+	ev.Transparent = true
+	ev.RSVP = model.RSVPAccepted
+	if !f(ev).Transparent {
+		t.Error("an accepted invitation that was transparent at the source was forced opaque")
+	}
+}
+
+// Most of a calendar is not invitations; those must come through untouched.
+func TestTransparentForRSVPIgnoresNonInvitations(t *testing.T) {
+	f, err := compileTransform(RuleConfig{
+		Transform: &TransformConfig{TransparentForRSVP: []string{"needsAction", "tentative"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev := timed("2026-08-18T12:00:00Z", "2026-08-18T13:00:00Z")
+	if f(ev).Transparent {
+		t.Error("event with no RSVP was made transparent")
+	}
+	ev.Transparent = true
+	if !f(ev).Transparent {
+		t.Error("event with no RSVP lost the source's own transparency")
 	}
 }

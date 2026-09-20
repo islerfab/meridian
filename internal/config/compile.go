@@ -46,9 +46,17 @@ func CompileRules(cfg *Config) ([]sync.Rule, error) {
 	}
 	rules := make([]sync.Rule, 0, len(cfg.Rules))
 	for _, rc := range cfg.Rules {
-		filter, err := compileFilter(env, rc.Filter)
+		filter, usesRSVP, err := compileFilter(env, rc.Filter)
 		if err != nil {
 			return nil, fmt.Errorf("rule %s: %w", rc.ID, err)
+		}
+		if rc.Transform != nil && len(rc.Transform.TransparentForRSVP) > 0 {
+			usesRSVP = true
+		}
+		if usesRSVP {
+			if err := checkRSVPReadable(cfg, rc.From); err != nil {
+				return nil, fmt.Errorf("rule %s: %w", rc.ID, err)
+			}
 		}
 		transform, err := compileTransform(rc)
 		if err != nil {
@@ -65,6 +73,25 @@ func CompileRules(cfg *Config) ([]sync.Rule, error) {
 	return rules, nil
 }
 
+// checkRSVPReadable rejects a rule that asks for the owner's RSVP from a
+// CalDAV source that has no way to work out which ATTENDEE the owner is.
+// Such a rule compiles and runs, and silently sees RSVPNone on every event
+// forever; failing at startup is the only way the mistake is ever noticed.
+func checkRSVPReadable(cfg *Config, from string) error {
+	account, _, ok := strings.Cut(from, "/")
+	if !ok {
+		return nil // malformed reference: validate() already reported it
+	}
+	for _, a := range cfg.Accounts {
+		if a.Name != account || a.Type != "caldav" || len(a.Identities) > 0 {
+			continue
+		}
+		return fmt.Errorf("rule reads the owner's rsvp but source account %q is caldav with no identities configured "+
+			"(iCalendar has no self-attendee marker; run `meridian identities %s` and set account.identities)", account, account)
+	}
+	return nil
+}
+
 // --- filter ----------------------------------------------------------------
 
 type compiledFilter struct {
@@ -74,15 +101,20 @@ type compiledFilter struct {
 	loc             *time.Location // nil = no weekday/window constraints
 	skipTransparent bool
 	skipAllDay      bool
+	skipDeclined    bool
 	when            cel.Program // nil = no expression
 }
 
-func compileFilter(env *cel.Env, fc *FilterConfig) (func(model.Event) bool, error) {
+// compileFilter also reports whether the filter depends on the owner's RSVP,
+// which only a source that can identify the owner is able to supply.
+func compileFilter(env *cel.Env, fc *FilterConfig) (match func(model.Event) bool, usesRSVP bool, err error) {
 	if fc == nil {
-		return func(model.Event) bool { return true }, nil
+		return func(model.Event) bool { return true }, false, nil
 	}
 	f := compiledFilter{winStart: -1, winEnd: -1,
-		skipTransparent: fc.SkipTransparent, skipAllDay: fc.SkipAllDay}
+		skipTransparent: fc.SkipTransparent, skipAllDay: fc.SkipAllDay,
+		skipDeclined: fc.SkipDeclined}
+	usesRSVP = fc.SkipDeclined
 	if len(fc.Weekdays) > 0 {
 		f.weekdays = map[time.Weekday]bool{}
 		for _, wd := range fc.Weekdays {
@@ -92,27 +124,28 @@ func compileFilter(env *cel.Env, fc *FilterConfig) (func(model.Event) bool, erro
 	if fc.Window != "" {
 		s, e, err := parseWindow(fc.Window)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		f.winStart, f.winEnd = s, e
 	}
 	if fc.Timezone != "" {
 		loc, err := time.LoadLocation(fc.Timezone)
 		if err != nil {
-			return nil, fmt.Errorf("timezone: %w", err)
+			return nil, false, fmt.Errorf("timezone: %w", err)
 		}
 		if f.weekdays != nil || f.winStart >= 0 {
 			f.loc = loc
 		}
 	}
 	if fc.When != "" {
-		prg, err := compileWhen(env, fc.When)
+		prg, whenUsesRSVP, err := compileWhen(env, fc.When)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		f.when = prg
+		usesRSVP = usesRSVP || whenUsesRSVP
 	}
-	return f.match, nil
+	return f.match, usesRSVP, nil
 }
 
 func (f compiledFilter) match(ev model.Event) bool {
@@ -120,6 +153,9 @@ func (f compiledFilter) match(ev model.Event) bool {
 		return false
 	}
 	if f.skipTransparent && ev.Transparent {
+		return false
+	}
+	if f.skipDeclined && ev.RSVP == model.RSVPDeclined {
 		return false
 	}
 	if !f.overlapsRegion(ev) {
@@ -189,6 +225,7 @@ type compiledTransform struct {
 	title, description, location *template.Template // nil = copy source
 	dropTitle, dropDesc, dropLoc bool
 	transparent                  *bool
+	transparentForRSVP           map[model.RSVP]bool // nil = not configured
 	reminders                    []int
 	color                        *template.Template // nil = no color override (no source to copy)
 	dropColor                    bool
@@ -209,6 +246,12 @@ func compileTransform(rc RuleConfig) (func(model.Event) model.ShadowContent, err
 			return nil, err
 		}
 		ct.transparent = tc.Transparent
+		if len(tc.TransparentForRSVP) > 0 {
+			ct.transparentForRSVP = map[model.RSVP]bool{}
+			for _, name := range tc.TransparentForRSVP {
+				ct.transparentForRSVP[rsvpNames[name]] = true
+			}
+		}
 		ct.reminders = tc.Reminders
 		if ct.color, ct.dropColor, err = compileField("color", tc.Color); err != nil {
 			return nil, err
@@ -274,6 +317,13 @@ func (ct compiledTransform) apply(ev model.Event) model.ShadowContent {
 	if ct.transparent != nil {
 		content.Transparent = *ct.transparent
 	}
+	// Only ever frees a slot, never claims one: a listed response goes
+	// transparent, anything else keeps whatever the source said. An event
+	// with no response at all is not an invitation and is left alone, which
+	// is most of a calendar.
+	if ct.transparentForRSVP != nil && ev.RSVP != model.RSVPNone && ct.transparentForRSVP[ev.RSVP] {
+		content.Transparent = true
+	}
 	return content
 }
 
@@ -336,6 +386,7 @@ func BuildAdapters(ctx context.Context, cfg *Config, log *slog.Logger) (map[stri
 					CalendarPath: cal.Path,
 					CalendarID:   key,
 					InstanceID:   cfg.Instance,
+					Identities:   a.Identities,
 				}, log)
 				if err != nil {
 					return nil, err
@@ -461,6 +512,36 @@ func BuildNotifier(cfg *Config) (notify.Notifier, error) {
 		return nil, fmt.Errorf("notifications: env var %s is empty", envName)
 	}
 	return &notify.Webhook{URL: url}, nil
+}
+
+// CalDAVConnection resolves one configured CalDAV account into adapter
+// config, secrets included, for setup-time tools that talk to the server
+// outside the sync loop. CalendarPath is left empty: the callers are
+// account-scoped, not calendar-scoped.
+func CalDAVConnection(cfg *Config, account string) (caldav.Config, error) {
+	for _, a := range cfg.Accounts {
+		if a.Name != account {
+			continue
+		}
+		if a.Type != "caldav" {
+			return caldav.Config{}, fmt.Errorf("account %s is %s, not caldav", account, a.Type)
+		}
+		user, err := requireEnv(a.UsernameEnv, a.Name)
+		if err != nil {
+			return caldav.Config{}, err
+		}
+		pass, err := requireEnv(a.PasswordEnv, a.Name)
+		if err != nil {
+			return caldav.Config{}, err
+		}
+		return caldav.Config{
+			Endpoint:   a.Endpoint,
+			Username:   user,
+			Password:   pass,
+			Identities: a.Identities,
+		}, nil
+	}
+	return caldav.Config{}, fmt.Errorf("%q is not a configured account", account)
 }
 
 func requireEnv(name, account string) (string, error) {

@@ -42,6 +42,10 @@ type Config struct {
 	// InstanceID scopes ListShadows to this meridian instance's shadows
 	// (required; markers of other instances are invisible).
 	InstanceID string
+	// Identities are the calendar addresses the server knows the account
+	// owner by, used to find the owner's own ATTENDEE and read its
+	// PARTSTAT. Empty leaves every event's RSVP at model.RSVPNone.
+	Identities []string
 }
 
 // Adapter implements adapter.CalendarAdapter for one CalDAV collection.
@@ -85,7 +89,7 @@ func (a *Adapter) ListEvents(ctx context.Context, window adapter.Window) ([]mode
 			if comp.Name != ical.CompEvent {
 				continue
 			}
-			ev, err := eventFromComponent(comp, a.cfg.CalendarID)
+			ev, err := eventFromComponent(comp, a.cfg.CalendarID, a.cfg.Identities)
 			if err != nil {
 				a.log.Warn("skipping unparseable source event", "path", obj.Path, "err", err)
 				continue

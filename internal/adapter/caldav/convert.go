@@ -25,7 +25,7 @@ const propClass = "CLASS"
 // Server-expanded instances arrive with UTC DATE-TIME values and a
 // RECURRENCE-ID on every instance (verified against sabre/dav 4.3.1);
 // all-day events stay DATE-valued.
-func eventFromComponent(comp *ical.Component, calendarID string) (model.Event, error) {
+func eventFromComponent(comp *ical.Component, calendarID string, identities []string) (model.Event, error) {
 	var ev model.Event
 
 	uid, err := comp.Props.Text(ical.PropUID)
@@ -56,7 +56,11 @@ func eventFromComponent(comp *ical.Component, calendarID string) (model.Event, e
 		ev.Organizer = stripMailto(org.Value)
 	}
 	for _, att := range comp.Props.Values(ical.PropAttendee) {
-		ev.Attendees = append(ev.Attendees, stripMailto(att.Value))
+		addr := stripMailto(att.Value)
+		ev.Attendees = append(ev.Attendees, addr)
+		if matchesIdentity(addr, identities) {
+			ev.RSVP = parseRSVP(att.Params.Get(ical.ParamParticipationStatus))
+		}
 	}
 
 	marker, found, err := parseComponentMarker(comp)
@@ -160,6 +164,39 @@ func parseVisibility(comp *ical.Component) model.Visibility {
 		return model.VisibilityConfidential
 	default:
 		return model.VisibilityDefault
+	}
+}
+
+// matchesIdentity reports whether an ATTENDEE address is one the account
+// owner answers to. iCalendar has no equivalent of Google's attendees[].self,
+// so without configured identities there is nothing to match and RSVP stays
+// RSVPNone. Guessing the owner from the attendee data is deliberately not
+// attempted: a wrong guess reads someone else's PARTSTAT as the owner's and
+// fails silently.
+func matchesIdentity(addr string, identities []string) bool {
+	for _, id := range identities {
+		if strings.EqualFold(addr, stripMailto(id)) {
+			return true
+		}
+	}
+	return false
+}
+
+// parseRSVP normalizes PARTSTAT. The four values meridian models are the
+// ones RFC 5545 defines for VEVENT; DELEGATED and the VTODO-only values
+// carry no busy/free meaning for a mirror and map to RSVPNone.
+func parseRSVP(partstat string) model.RSVP {
+	switch strings.ToUpper(partstat) {
+	case "NEEDS-ACTION":
+		return model.RSVPNeedsAction
+	case "ACCEPTED":
+		return model.RSVPAccepted
+	case "DECLINED":
+		return model.RSVPDeclined
+	case "TENTATIVE":
+		return model.RSVPTentative
+	default:
+		return model.RSVPNone
 	}
 }
 

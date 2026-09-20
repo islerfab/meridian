@@ -126,6 +126,12 @@ func schemaForField(structName string, f configField, lits configLiterals) (map[
 		items["enum"] = lits.weekdays
 	case "TransformConfig.visibility":
 		node["enum"] = lits.visibilities
+	case "TransformConfig.transparentForRSVP":
+		items, ok := node["items"].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("want an array node to constrain, got %v", node["type"])
+		}
+		items["enum"] = lits.rsvps
 	case "FilterConfig.window":
 		node["pattern"] = lits.windowPattern
 	case "Guards.massDeleteFraction":
@@ -216,6 +222,7 @@ func typedDefault(jsonType any, raw string) (any, error) {
 type configLiterals struct {
 	weekdays      []string
 	visibilities  []string
+	rsvps         []string
 	windowPattern string
 }
 
@@ -242,6 +249,8 @@ func parseConfigLiterals(path string) (configLiterals, error) {
 				lits.weekdays, err = compositeLitKeys(vs.Values[0])
 			case "visibilityNames":
 				lits.visibilities, err = compositeLitKeys(vs.Values[0])
+			case "rsvpNames":
+				lits.rsvps, err = compositeLitKeys(vs.Values[0])
 			case "windowRe":
 				lits.windowPattern, err = mustCompileArg(vs.Values[0])
 			default:
@@ -258,6 +267,9 @@ func parseConfigLiterals(path string) (configLiterals, error) {
 	}
 	if len(lits.visibilities) == 0 {
 		return lits, fmt.Errorf("%s: visibilityNames not found", path)
+	}
+	if len(lits.rsvps) == 0 {
+		return lits, fmt.Errorf("%s: rsvpNames not found", path)
 	}
 	if lits.windowPattern == "" {
 		return lits, fmt.Errorf("%s: windowRe not found", path)

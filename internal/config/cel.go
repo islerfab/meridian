@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"cel.dev/cel-go/cel"
+	celast "cel.dev/cel-go/common/ast"
 	"cel.dev/cel-go/ext"
 
 	"github.com/islerfab/meridian/internal/model"
@@ -40,6 +41,12 @@ type CELEvent struct {
 	Organizer string `cel:"organizer"`
 	// Attendees lists attendee identifiers.
 	Attendees []string `cel:"attendees"`
+	// Rsvp is the calendar owner's own response to an invitation:
+	// needsAction, accepted, declined or tentative. Empty when the owner
+	// has no attendee record, which is every event that isn't an
+	// invitation — test for a specific value, never for "not accepted",
+	// or the expression also catches ordinary non-meeting events.
+	Rsvp string `cel:"rsvp"`
 }
 
 func celEventFromModel(ev model.Event) CELEvent {
@@ -56,6 +63,7 @@ func celEventFromModel(ev model.Event) CELEvent {
 		Visibility:      string(ev.Visibility),
 		Organizer:       ev.Organizer,
 		Attendees:       ev.Attendees,
+		Rsvp:            string(ev.RSVP),
 	}
 }
 
@@ -69,18 +77,40 @@ func newCELEnv() (*cel.Env, error) {
 }
 
 // compileWhen compiles and type-checks a filter.when expression to a bool
-// program.
-func compileWhen(env *cel.Env, expr string) (cel.Program, error) {
+// program. usesRSVP reports whether the expression reads event.rsvp, which
+// callers need to tell a CalDAV source that it cannot answer the question.
+func compileWhen(env *cel.Env, expr string) (prg cel.Program, usesRSVP bool, err error) {
 	ast, iss := env.Compile(expr)
 	if iss.Err() != nil {
-		return nil, fmt.Errorf("when %q: %w", expr, iss.Err())
+		return nil, false, fmt.Errorf("when %q: %w", expr, iss.Err())
 	}
 	if ast.OutputType() != cel.BoolType {
-		return nil, fmt.Errorf("when %q: must evaluate to bool, got %s", expr, ast.OutputType())
+		return nil, false, fmt.Errorf("when %q: must evaluate to bool, got %s", expr, ast.OutputType())
 	}
-	prg, err := env.Program(ast)
+	prg, err = env.Program(ast)
 	if err != nil {
-		return nil, fmt.Errorf("when %q: %w", expr, err)
+		return nil, false, fmt.Errorf("when %q: %w", expr, err)
 	}
-	return prg, nil
+	return prg, selectsEventField(ast, "rsvp"), nil
+}
+
+// selectsEventField reports whether the expression contains an `event.<name>`
+// field selection. Walking the checked AST rather than matching on the
+// source text so that a string mentioning the field, or a comment, doesn't
+// register as a read.
+func selectsEventField(a *cel.Ast, name string) bool {
+	found := false
+	celast.PostOrderVisit(a.NativeRep().Expr(), celast.NewExprVisitor(func(e celast.Expr) {
+		if e.Kind() != celast.SelectKind {
+			return
+		}
+		sel := e.AsSelect()
+		if sel.FieldName() != name {
+			return
+		}
+		if op := sel.Operand(); op.Kind() == celast.IdentKind && op.AsIdent() == "event" {
+			found = true
+		}
+	}))
+	return found
 }

@@ -63,6 +63,13 @@
           "description": "The CalDAV server's base URL.",
           "type": "string"
         },
+        "identities": {
+          "description": "The calendar addresses this server knows the account\nowner by, used to read the owner's own RSVP off an invitation.\nGoogle needs none — the API marks the owner's attendee entry — so\nthis is CalDAV-only, where iCalendar has no such marker. Usually one\naddress; `meridian identities \u003caccount\u003e` asks the server for it.\n\nOnly addresses belonging to THIS account. A calendar mirrored in from\nelsewhere carries the owner's address on that other system, which the\nserver won't report; add it here by hand to read RSVP off such a\ncalendar.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "name": {
           "description": "The account's unique name, referenced in rules as\n`\u003caccount\u003e/\u003ccalendar\u003e`.",
           "type": "string"
@@ -116,6 +123,11 @@
         "skipAllDay": {
           "default": false,
           "description": "Skips all-day events entirely.",
+          "type": "boolean"
+        },
+        "skipDeclined": {
+          "default": false,
+          "description": "Skips invitations the calendar owner declined. Events\nthe owner was never invited to are unaffected, so this never touches\nordinary non-meeting events. CalDAV sources need account.identities\nfor the owner's response to be readable at all.",
           "type": "boolean"
         },
         "skipTransparent": {
@@ -258,6 +270,19 @@
             "boolean",
             "null"
           ]
+        },
+        "transparentForRSVP": {
+          "description": "Lists the responses (needsAction, accepted,\ndeclined, tentative) whose copies stop blocking time, so a meeting\nstill sitting unanswered shows up without holding the slot. Any other\nresponse keeps the source's own transparency, and an event the owner\nwas never invited to is untouched. Mutually exclusive with\n`transparent`, which forces one answer for every event.",
+          "items": {
+            "enum": [
+              "needsAction",
+              "accepted",
+              "declined",
+              "tentative"
+            ],
+            "type": "string"
+          },
+          "type": "array"
         },
         "visibility": {
           "description": "Sets who may read the shadow: public, private or\nconfidential. Unset mirrors the source. Independent of Transparent,\nwhich governs whether the shadow blocks time rather than who sees it.\nNot templated: a closed set is worth more here than an expression\nfree to produce a value no provider accepts.",

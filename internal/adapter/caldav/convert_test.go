@@ -44,7 +44,7 @@ ATTENDEE:mailto:a@example.com
 ATTENDEE:MAILTO:b@example.com
 END:VEVENT`)
 
-	ev, err := eventFromComponent(comp, "work/primary")
+	ev, err := eventFromComponent(comp, "work/primary", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ DTSTART;VALUE=DATE:20260812
 SUMMARY:Holiday
 END:VEVENT`)
 
-	ev, err := eventFromComponent(comp, "cal")
+	ev, err := eventFromComponent(comp, "cal", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ DTSTAMP:20260807T120000Z
 DTSTART:20260818T120000Z
 DURATION:PT45M
 END:VEVENT`)
-	ev, err := eventFromComponent(comp, "cal")
+	ev, err := eventFromComponent(comp, "cal", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ X-MERIDIAN-INSTANCE:inst-test
 X-MERIDIAN-REPAIR:0
 X-MERIDIAN-V:2
 END:VEVENT`)
-	ev, err := eventFromComponent(comp, "cal")
+	ev, err := eventFromComponent(comp, "cal", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ X-MERIDIAN-HASH:deadbeef
 X-MERIDIAN-INSTANCE:inst-test
 X-MERIDIAN-V:1
 END:VEVENT`)
-	ev, err := eventFromComponent(comp, "cal")
+	ev, err := eventFromComponent(comp, "cal", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,14 +175,14 @@ func TestEventFromComponentErrors(t *testing.T) {
 DTSTAMP:20260807T120000Z
 DTSTART:20260818T120000Z
 END:VEVENT`)
-	if _, err := eventFromComponent(noUID, "cal"); err == nil {
+	if _, err := eventFromComponent(noUID, "cal", nil); err == nil {
 		t.Error("missing UID must error")
 	}
 	noStart := parseVEVENT(t, `BEGIN:VEVENT
 UID:x
 DTSTAMP:20260807T120000Z
 END:VEVENT`)
-	if _, err := eventFromComponent(noStart, "cal"); err == nil {
+	if _, err := eventFromComponent(noStart, "cal", nil); err == nil {
 		t.Error("missing DTSTART must error")
 	}
 	badMarker := parseVEVENT(t, `BEGIN:VEVENT
@@ -191,7 +191,7 @@ DTSTAMP:20260807T120000Z
 DTSTART:20260818T120000Z
 X-MERIDIAN-V:1
 END:VEVENT`)
-	if _, err := eventFromComponent(badMarker, "cal"); err == nil {
+	if _, err := eventFromComponent(badMarker, "cal", nil); err == nil {
 		t.Error("partial marker must error")
 	}
 }
@@ -310,7 +310,7 @@ func TestVisibilityRoundTrip(t *testing.T) {
 				body += "\n" + class
 			}
 			body += "\nEND:VEVENT"
-			ev, err := eventFromComponent(parseVEVENT(t, body), "cal")
+			ev, err := eventFromComponent(parseVEVENT(t, body), "cal", nil)
 			if err != nil {
 				t.Fatalf("eventFromComponent: %v", err)
 			}
@@ -344,5 +344,85 @@ func TestBuildShadowCalendarVisibility(t *testing.T) {
 	}
 	if got := render(model.VisibilityPrivate); !strings.Contains(got, "CLASS:PRIVATE") {
 		t.Errorf("private visibility did not write CLASS:PRIVATE:\n%s", got)
+	}
+}
+
+func TestEventFromComponentRSVP(t *testing.T) {
+	const body = `BEGIN:VEVENT
+UID:abc@example.com
+DTSTAMP:20260807T120000Z
+DTSTART:20260818T120000Z
+DTEND:20260818T130000Z
+SUMMARY:Sync
+ORGANIZER:mailto:boss@example.com
+ATTENDEE;PARTSTAT=ACCEPTED:mailto:other@example.com
+ATTENDEE;PARTSTAT=DECLINED:mailto:Me@Example.com
+END:VEVENT`
+
+	cases := []struct {
+		name       string
+		identities []string
+		want       model.RSVP
+	}{
+		// iCalendar has no self marker, so with nothing to match against
+		// the owner's answer is simply unknown.
+		{"no identities configured", nil, model.RSVPNone},
+		{"identity matches", []string{"me@example.com"}, model.RSVPDeclined},
+		{"match is case-insensitive", []string{"ME@EXAMPLE.COM"}, model.RSVPDeclined},
+		{"identity given with mailto prefix", []string{"mailto:me@example.com"}, model.RSVPDeclined},
+		{"several identities, one matches", []string{"nope@example.com", "me@example.com"}, model.RSVPDeclined},
+		// Never read a different attendee's PARTSTAT as the owner's.
+		{"no identity matches", []string{"absent@example.com"}, model.RSVPNone},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ev, err := eventFromComponent(parseVEVENT(t, body), "cal", tc.identities)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ev.RSVP != tc.want {
+				t.Errorf("RSVP = %q, want %q", ev.RSVP, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseRSVPPartstat(t *testing.T) {
+	cases := map[string]model.RSVP{
+		"NEEDS-ACTION": model.RSVPNeedsAction,
+		"needs-action": model.RSVPNeedsAction,
+		"ACCEPTED":     model.RSVPAccepted,
+		"DECLINED":     model.RSVPDeclined,
+		"TENTATIVE":    model.RSVPTentative,
+		// Valid PARTSTAT values that carry no busy/free meaning here.
+		"DELEGATED":  model.RSVPNone,
+		"IN-PROCESS": model.RSVPNone,
+		"":           model.RSVPNone,
+		"NONSENSE":   model.RSVPNone,
+	}
+	for in, want := range cases {
+		if got := parseRSVP(in); got != want {
+			t.Errorf("parseRSVP(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// An event with no ATTENDEE at all is the common case, not an invitation
+// nobody answered: turning those into a real RSVP state would misclassify
+// the bulk of a calendar.
+func TestEventFromComponentNoAttendeesIsRSVPNone(t *testing.T) {
+	comp := parseVEVENT(t, `BEGIN:VEVENT
+UID:solo@example.com
+DTSTAMP:20260807T120000Z
+DTSTART:20260818T120000Z
+DTEND:20260818T130000Z
+SUMMARY:Focus time
+END:VEVENT`)
+	ev, err := eventFromComponent(comp, "cal", []string{"me@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.RSVP != model.RSVPNone {
+		t.Errorf("RSVP = %q, want empty", ev.RSVP)
 	}
 }

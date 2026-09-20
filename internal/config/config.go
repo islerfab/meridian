@@ -102,6 +102,18 @@ type Account struct {
 	// refresh token. Get one via `meridian oauth`.
 	RefreshTokenEnv string `yaml:"refreshTokenEnv" doc:"required,google"`
 
+	// Identities are the calendar addresses this server knows the account
+	// owner by, used to read the owner's own RSVP off an invitation.
+	// Google needs none — the API marks the owner's attendee entry — so
+	// this is CalDAV-only, where iCalendar has no such marker. Usually one
+	// address; `meridian identities <account>` asks the server for it.
+	//
+	// Only addresses belonging to THIS account. A calendar mirrored in from
+	// elsewhere carries the owner's address on that other system, which the
+	// server won't report; add it here by hand to read RSVP off such a
+	// calendar.
+	Identities []string `yaml:"identities" doc:"optional,caldav"`
+
 	// Calendars is the set of this account's calendars that rules may
 	// reference. At least one is required per account.
 	Calendars []CalendarConfig `yaml:"calendars"`
@@ -163,6 +175,11 @@ type FilterConfig struct {
 	SkipTransparent bool `yaml:"skipTransparent" doc:"optional,default=false"`
 	// SkipAllDay skips all-day events entirely.
 	SkipAllDay bool `yaml:"skipAllDay" doc:"optional,default=false"`
+	// SkipDeclined skips invitations the calendar owner declined. Events
+	// the owner was never invited to are unaffected, so this never touches
+	// ordinary non-meeting events. CalDAV sources need account.identities
+	// for the owner's response to be readable at all.
+	SkipDeclined bool `yaml:"skipDeclined" doc:"optional,default=false"`
 	// When is a CEL expression over the CELEvent schema, ANDed with every
 	// other set field. Compiled and type-checked at config load — a bad
 	// expression is a startup error, never a mid-sync surprise.
@@ -187,6 +204,13 @@ type TransformConfig struct {
 	// Transparent forces the shadow's opacity regardless of the source
 	// event's own transparency; unset copies the source's value.
 	Transparent *bool `yaml:"transparent" doc:"optional"`
+	// TransparentForRSVP lists the responses (needsAction, accepted,
+	// declined, tentative) whose copies stop blocking time, so a meeting
+	// still sitting unanswered shows up without holding the slot. Any other
+	// response keeps the source's own transparency, and an event the owner
+	// was never invited to is untouched. Mutually exclusive with
+	// `transparent`, which forces one answer for every event.
+	TransparentForRSVP []string `yaml:"transparentForRSVP" doc:"optional"`
 	// Reminders is a list of minutes before start; an empty list means no
 	// reminders. Unset copies the source's reminders.
 	Reminders []int `yaml:"reminders" doc:"optional"`
@@ -212,6 +236,16 @@ var visibilityNames = map[string]model.Visibility{
 	"public":       model.VisibilityPublic,
 	"private":      model.VisibilityPrivate,
 	"confidential": model.VisibilityConfidential,
+}
+
+// rsvpNames is the closed set transform.transparentForRSVP accepts, kept as
+// a literal for the same reason visibilityNames is: the chart's generated
+// schema and this validator must be the same list.
+var rsvpNames = map[string]model.RSVP{
+	"needsAction": model.RSVPNeedsAction,
+	"accepted":    model.RSVPAccepted,
+	"declined":    model.RSVPDeclined,
+	"tentative":   model.RSVPTentative,
 }
 
 var weekdayNames = map[string]time.Weekday{
@@ -294,6 +328,9 @@ func (c *Config) validate() error {
 			if a.Endpoint != "" || a.UsernameEnv != "" || a.PasswordEnv != "" {
 				fail("%s: caldav-only fields set on google account", where)
 			}
+			if len(a.Identities) > 0 {
+				fail("%s: identities is a caldav-only field (Google marks the owner's own attendee entry)", where)
+			}
 		default:
 			fail("%s: type must be caldav or google, got %q", where, a.Type)
 		}
@@ -355,9 +392,19 @@ func (c *Config) validate() error {
 				fail("%s: destination equals source %q", where, to)
 			}
 		}
-		if tr := r.Transform; tr != nil && tr.Visibility != nil {
-			if _, ok := visibilityNames[*tr.Visibility]; !ok {
-				fail("%s: transform.visibility %q (want public, private or confidential)", where, *tr.Visibility)
+		if tr := r.Transform; tr != nil {
+			if tr.Visibility != nil {
+				if _, ok := visibilityNames[*tr.Visibility]; !ok {
+					fail("%s: transform.visibility %q (want public, private or confidential)", where, *tr.Visibility)
+				}
+			}
+			for _, name := range tr.TransparentForRSVP {
+				if _, ok := rsvpNames[name]; !ok {
+					fail("%s: transform.transparentForRSVP %q (want needsAction, accepted, declined or tentative)", where, name)
+				}
+			}
+			if tr.Transparent != nil && len(tr.TransparentForRSVP) > 0 {
+				fail("%s: transform.transparent and transform.transparentForRSVP both set; one forces opacity for every event, the other derives it from the owner's response", where)
 			}
 		}
 		if f := r.Filter; f != nil {

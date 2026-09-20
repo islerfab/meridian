@@ -25,6 +25,27 @@ const (
 	VisibilityConfidential Visibility = "confidential"
 )
 
+// RSVP is the calendar owner's own answer to an invitation (Google
+// attendees[].responseStatus for the self attendee, iCalendar PARTSTAT).
+// RSVPNone is the empty value and means the owner has no attendee record
+// on the event at all, which covers every event that isn't an invitation.
+// Most events are not invitations, so treating RSVPNone as "invited but
+// silent" would misclassify the bulk of a calendar.
+//
+// Independent of both Status and Transparent: Status is the organizer's
+// view of whether the meeting stands, Transparent is their busy/free
+// choice, and this is the attendee's answer. Declining sets RSVPDeclined
+// and leaves Status confirmed.
+type RSVP string
+
+const (
+	RSVPNone        RSVP = ""
+	RSVPNeedsAction RSVP = "needsAction"
+	RSVPAccepted    RSVP = "accepted"
+	RSVPDeclined    RSVP = "declined"
+	RSVPTentative   RSVP = "tentative"
+)
+
 // EventRef identifies one source event instance across cycles. It is the
 // normalized identity change detection and orphan GC key on: calendar +
 // UID + recurrence-instance ID. RecurrenceID is empty for non-recurring
@@ -66,6 +87,10 @@ type Event struct {
 	Status     Status
 	Organizer  string
 	Attendees  []string
+	// RSVP is the calendar owner's own response. On CalDAV it stays
+	// RSVPNone unless the account configures the identities that let the
+	// adapter recognize which ATTENDEE is the owner.
+	RSVP RSVP
 
 	// Marker is non-nil when the source event is itself meridian-owned
 	// (a shadow observed as a source). The zombie-resurrection guard keys

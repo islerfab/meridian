@@ -17,6 +17,8 @@ func TestDeGo(t *testing.T) {
 		{"is-inside-word-not-stripped", "Island", "Island isolates things.", "Isolates things."},
 		{"already-lowercase-after-strip", "AllDay", "AllDay is true for all-day events.", "True for all-day events."},
 		{"leading-code-span", "Interval", "Interval is `5m` by default.", "`5m` by default."},
+		{"are-copula", "Identities", "Identities are the owner's addresses.", "The owner's addresses."},
+		{"are-inside-word-not-stripped", "Ares", "Ares arents a word.", "Arents a word."},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

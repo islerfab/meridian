@@ -35,8 +35,14 @@ func deGo(ident, doc string) (string, error) {
 		return "", fmt.Errorf("%s: doc comment must start with the identifier as a whole word, got %q", ident, firstWords(doc, 6))
 	}
 	rest = strings.TrimSpace(rest)
-	if after, found := strings.CutPrefix(rest, "is "); found {
-		rest = after
+	// "are" as well as "is", so a plural field can be documented the way Go
+	// expects ("Identities are the addresses...") instead of being forced
+	// into a singular verb to survive this function.
+	for _, verb := range []string{"is ", "are "} {
+		if after, found := strings.CutPrefix(rest, verb); found {
+			rest = after
+			break
+		}
 	}
 	if rest == "" {
 		return "", fmt.Errorf("%s: doc comment says nothing beyond the identifier", ident)

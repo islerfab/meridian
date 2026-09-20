@@ -35,7 +35,7 @@ Genuine gaps rather than design positions. These may close.
 |---|---|
 | Google Calendar and CalDAV only | No Outlook, Exchange, or Microsoft 365 support |
 | Colors aren't normalized across providers | You write Google's numeric `colorId` or CalDAV's CSS color name, depending on the destination |
-| Attendees and RSVP status aren't copied | A mirrored meeting shows the event, not who accepted it |
+| The attendee list isn't copied | A mirrored meeting shows the event, not who else was invited |
 | Conferencing links aren't copied | A mirrored meeting has no Zoom or Meet link attached |
 
 ## Worth knowing

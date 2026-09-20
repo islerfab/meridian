@@ -115,6 +115,50 @@ So Meridian skips any source event carrying a Meridian marker, whoever wrote it.
 
 This is still two mirrors, not a merge. See [Limitations]({{% relref "limitations" %}}).
 
+## Skip meetings you declined
+
+An invitation you turned down still sits on your calendar, still marked busy. Google keeps it and only hides it in its own web UI; the API hands it over like any other event. Mirror that calendar and the copy blocks a slot you told everyone you weren't using.
+
+```yaml
+filter:
+  skipDeclined: true
+```
+
+Only invitations you personally declined are dropped. Events you were never invited to have no response to read, so they pass through untouched, and that covers most of an ordinary calendar.
+
+On Google this works as written, because the API marks your own entry in the attendee list. CalDAV has no equivalent, so the account has to say which addresses are yours:
+
+```yaml
+accounts:
+  - name: private
+    type: caldav
+    identities: [you@example.com]
+```
+
+Ask the server for it with `meridian identities private` rather than guessing. A rule that reads your response from a CalDAV source with no `identities` set is a startup error, because the alternative is a filter that silently matches nothing for as long as it runs.
+
+> [!NOTE]
+> Read responses from the calendar that owns them. Where a calendar is itself a mirror of another system, its copy of your answer is only as fresh as whatever sync populates it, and can lag the original by a good while.
+
+## Show unanswered invitations without blocking time
+
+Dropping declined meetings is one half. The other is that an invitation you haven't answered shouldn't hold a slot as firmly as one you committed to:
+
+```yaml
+filter:
+  skipDeclined: true
+transform:
+  transparentForRSVP: [needsAction, tentative]
+```
+
+Copies of anything you left unanswered or marked as a maybe stop blocking time, while still appearing on the destination so you can see what's pending. Accepted meetings keep blocking, declined ones never arrive.
+
+Name whichever responses you want freed. `[needsAction]` alone is stricter, treating a tentative yes as a real commitment. Four values are accepted: `needsAction`, `accepted`, `declined` and `tentative`.
+
+The field only ever frees a slot. A response you didn't list keeps whatever transparency the source set, so an event the organiser already marked free stays free. Events you were never invited to have no response at all and are left alone entirely, which covers the bulk of an ordinary calendar.
+
+It can't be combined with `transparent`, since that forces one answer for every event and this derives the answer per event; setting both is a startup error.
+
 ## Filters beyond the typed fields
 
 Typed `filter` fields cover the common cases. For anything else, `filter.when` takes a [CEL](https://cel.dev/) expression over a small documented event schema, ANDed with the typed fields:

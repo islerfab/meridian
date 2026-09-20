@@ -86,6 +86,11 @@
           "doc": "Names the env var holding a long-lived Google OAuth\nrefresh token. Get one via `meridian oauth`.",
           "required": true,
           "provider": "google"
+        },
+        {
+          "name": "identities",
+          "doc": "The calendar addresses this server knows the account\nowner by, used to read the owner's own RSVP off an invitation.\nGoogle needs none — the API marks the owner's attendee entry — so\nthis is CalDAV-only, where iCalendar has no such marker. Usually one\naddress; `meridian identities \u003caccount\u003e` asks the server for it.\n\nOnly addresses belonging to THIS account. A calendar mirrored in from\nelsewhere carries the owner's address on that other system, which the\nserver won't report; add it here by hand to read RSVP off such a\ncalendar.",
+          "provider": "caldav"
         }
       ]
     },
@@ -168,6 +173,11 @@
           "default": "false"
         },
         {
+          "name": "skipDeclined",
+          "doc": "Skips invitations the calendar owner declined. Events\nthe owner was never invited to are unaffected, so this never touches\nordinary non-meeting events. CalDAV sources need account.identities\nfor the owner's response to be readable at all.",
+          "default": "false"
+        },
+        {
           "name": "when",
           "doc": "A CEL expression over the CELEvent schema, ANDed with every\nother set field. Compiled and type-checked at config load — a bad\nexpression is a startup error, never a mid-sync surprise."
         }
@@ -192,6 +202,10 @@
         {
           "name": "transparent",
           "doc": "Forces the shadow's opacity regardless of the source\nevent's own transparency; unset copies the source's value."
+        },
+        {
+          "name": "transparentForRSVP",
+          "doc": "Lists the responses (needsAction, accepted,\ndeclined, tentative) whose copies stop blocking time, so a meeting\nstill sitting unanswered shows up without holding the slot. Any other\nresponse keeps the source's own transparency, and an event the owner\nwas never invited to is untouched. Mutually exclusive with\n`transparent`, which forces one answer for every event."
         },
         {
           "name": "reminders",
@@ -271,6 +285,11 @@
         "name": "attendees",
         "doc": "Lists attendee identifiers.",
         "celType": "list(string)"
+      },
+      {
+        "name": "rsvp",
+        "doc": "The calendar owner's own response to an invitation:\nneedsAction, accepted, declined or tentative. Empty when the owner\nhas no attendee record, which is every event that isn't an\ninvitation — test for a specific value, never for \"not accepted\",\nor the expression also catches ordinary non-meeting events.",
+        "celType": "string"
       }
     ]
   }

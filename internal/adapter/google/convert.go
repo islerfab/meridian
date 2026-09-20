@@ -60,6 +60,9 @@ func eventFromGoogle(item *calendar.Event, calendarID string) (model.Event, erro
 		if att.Email != "" {
 			ev.Attendees = append(ev.Attendees, att.Email)
 		}
+		if att.Self {
+			ev.RSVP = parseRSVP(att.ResponseStatus)
+		}
 	}
 
 	if item.ExtendedProperties != nil {
@@ -193,6 +196,25 @@ func visibilityFromGoogle(v string) model.Visibility {
 		return model.VisibilityConfidential
 	default:
 		return model.VisibilityDefault
+	}
+}
+
+// parseRSVP normalizes attendees[].responseStatus. Google's four values are
+// already the model's spelling, so anything else is a value this build
+// doesn't know and maps to RSVPNone rather than being passed through into
+// rules as an unrecognized string.
+func parseRSVP(status string) model.RSVP {
+	switch status {
+	case "needsAction":
+		return model.RSVPNeedsAction
+	case "accepted":
+		return model.RSVPAccepted
+	case "declined":
+		return model.RSVPDeclined
+	case "tentative":
+		return model.RSVPTentative
+	default:
+		return model.RSVPNone
 	}
 }
 

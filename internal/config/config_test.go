@@ -163,3 +163,79 @@ func TestCompileRejectsBadCELAndTemplates(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadRejectsRSVPConfig(t *testing.T) {
+	base := `
+instance: i
+accounts:
+  - name: a
+    type: caldav
+    endpoint: https://x
+    usernameEnv: U
+    passwordEnv: P
+    identities: [me@example.com]
+    calendars: [{name: c, path: /p/}]
+  - name: b
+    type: google
+    clientIDEnv: I
+    clientSecretEnv: S
+    refreshTokenEnv: T
+    calendars: [{name: c, id: x@y}]
+rules:
+  - id: r
+    from: a/c
+    to: [b/c]
+    transform:
+`
+	cases := []struct {
+		name    string
+		tail    string
+		wantErr string
+	}{
+		{"unknown rsvp value", "      transparentForRSVP: [maybe]\n", "transparentForRSVP"},
+		{"transparent and transparentForRSVP together",
+			"      transparent: false\n      transparentForRSVP: [needsAction]\n", "both set"},
+		{"valid list", "      transparentForRSVP: [needsAction, tentative]\n", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := loadString(t, base+c.tail)
+			switch {
+			case c.wantErr == "" && err != nil:
+				t.Fatalf("want no error, got %v", err)
+			case c.wantErr != "" && err == nil:
+				t.Fatal("want an error, got nil")
+			case c.wantErr != "" && !strings.Contains(err.Error(), c.wantErr):
+				t.Errorf("error %v should mention %q", err, c.wantErr)
+			}
+		})
+	}
+}
+
+func TestLoadRejectsIdentitiesOnGoogleAccount(t *testing.T) {
+	cfg := `
+instance: i
+accounts:
+  - name: b
+    type: google
+    clientIDEnv: I
+    clientSecretEnv: S
+    refreshTokenEnv: T
+    identities: [me@example.com]
+    calendars: [{name: c, id: x@y}]
+  - name: a
+    type: caldav
+    endpoint: https://x
+    usernameEnv: U
+    passwordEnv: P
+    calendars: [{name: c, path: /p/}]
+rules:
+  - id: r
+    from: b/c
+    to: [a/c]
+`
+	_, err := loadString(t, cfg)
+	if err == nil || !strings.Contains(err.Error(), "identities is a caldav-only field") {
+		t.Fatalf("want a caldav-only rejection, got %v", err)
+	}
+}

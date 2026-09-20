@@ -65,7 +65,7 @@ func FuzzCompileWhen(f *testing.F) {
 	})
 
 	f.Fuzz(func(t *testing.T, expr string) {
-		prg, err := compileWhen(env, expr)
+		prg, _, err := compileWhen(env, expr)
 		if err != nil {
 			return
 		}

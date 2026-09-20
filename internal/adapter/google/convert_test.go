@@ -276,3 +276,53 @@ func TestGoogleFromShadowVisibility(t *testing.T) {
 		t.Errorf("visibility = %q, want private", item.Visibility)
 	}
 }
+
+func TestEventFromGoogleRSVP(t *testing.T) {
+	base := func(attendees []*calendar.EventAttendee) *calendar.Event {
+		return &calendar.Event{
+			Id:        "evt",
+			Summary:   "Sync",
+			Start:     &calendar.EventDateTime{DateTime: "2026-08-18T14:00:00+02:00"},
+			End:       &calendar.EventDateTime{DateTime: "2026-08-18T15:00:00+02:00"},
+			Attendees: attendees,
+		}
+	}
+	cases := []struct {
+		name      string
+		attendees []*calendar.EventAttendee
+		want      model.RSVP
+	}{
+		{"no attendees at all", nil, model.RSVPNone},
+		{"declined", []*calendar.EventAttendee{
+			{Email: "other@example.com", ResponseStatus: "accepted"},
+			{Email: "me@example.com", Self: true, ResponseStatus: "declined"},
+		}, model.RSVPDeclined},
+		{"needs action", []*calendar.EventAttendee{
+			{Email: "me@example.com", Self: true, ResponseStatus: "needsAction"},
+		}, model.RSVPNeedsAction},
+		{"accepted", []*calendar.EventAttendee{
+			{Email: "me@example.com", Self: true, ResponseStatus: "accepted"},
+		}, model.RSVPAccepted},
+		{"tentative", []*calendar.EventAttendee{
+			{Email: "me@example.com", Self: true, ResponseStatus: "tentative"},
+		}, model.RSVPTentative},
+		// Someone else's answer is never the owner's.
+		{"attendees but no self entry", []*calendar.EventAttendee{
+			{Email: "other@example.com", ResponseStatus: "accepted"},
+		}, model.RSVPNone},
+		{"unknown value", []*calendar.EventAttendee{
+			{Email: "me@example.com", Self: true, ResponseStatus: "delegated"},
+		}, model.RSVPNone},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ev, err := eventFromGoogle(base(tc.attendees), "cal")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ev.RSVP != tc.want {
+				t.Errorf("RSVP = %q, want %q", ev.RSVP, tc.want)
+			}
+		})
+	}
+}

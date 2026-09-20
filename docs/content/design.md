@@ -111,6 +111,8 @@ type CalendarAdapter interface {
 
 **Nothing provider-specific crosses the boundary.** The normalized `Event` carries UTC instants, the `AllDay` flag, the CEL schema fields and the marker.
 
+**One asymmetry the adapter cannot absorb: knowing which attendee is you.** Reading the calendar owner's own RSVP means picking their entry out of the attendee list, and Google's API marks it while iCalendar has no equivalent. The adapter can't invent the answer, so a CalDAV account names its own addresses in `identities` and a Google account needs nothing. Guessing the owner from attendee data was tried and rejected: the addresses appearing most often on a work calendar belong to whoever schedules the most meetings, and reading a colleague's response as yours fails silently. Without `identities`, RSVP is simply empty, and a rule that asks for it against such a source fails at config load instead of quietly matching nothing.
+
 ### Error taxonomy
 
 Adapters normalize every provider error into one of four classes the engine acts on uniformly:
