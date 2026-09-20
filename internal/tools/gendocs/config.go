@@ -43,7 +43,7 @@ type configStruct struct {
 
 func genConfigData() (string, error) {
 	structs, err := parseConfigStructs(configSourceFile, map[string]bool{
-		"Config": true, "Notifications": true, "Account": true,
+		"Config": true, "Notifications": true, "Guards": true, "Account": true,
 		"CalendarConfig": true, "RuleConfig": true, "FilterConfig": true,
 		"TransformConfig": true,
 	}, true)
@@ -65,6 +65,7 @@ func genConfigData() (string, error) {
 	sections := []configStruct{
 		withTitle("Top level", structs["Config"]),
 		withTitle("`notifications`", structs["Notifications"]),
+		withTitle("`guards`", structs["Guards"]),
 		withTitle("`accounts`", structs["Account"]),
 		withTitle("`accounts[].calendars`", structs["CalendarConfig"]),
 		withTitle("`rules`", structs["RuleConfig"]),

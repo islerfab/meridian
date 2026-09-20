@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/islerfab/meridian/internal/model"
 )
 
 // Config is the root of rules.yaml: instance identity, sync interval,
@@ -33,10 +35,14 @@ type Config struct {
 	// Interval is the time between reconciliation cycles.
 	Interval string `yaml:"interval" doc:"optional,default=5m"`
 
-	// Notifications is the operator notification channel; leaving it unset
-	// disables notifications without disabling the metrics and logs that
-	// cover the same events.
+	// Notifications is the operator notification channel. Leaving it unset
+	// disables delivery without disabling the metrics and logs covering the
+	// same events, so it is redundant wherever those are already alerted
+	// on, and the only out-of-band signal where they are not.
 	Notifications Notifications `yaml:"notifications"`
+	// Guards tunes the hardening guards. They are on by default and work
+	// whether or not notifications are configured.
+	Guards Guards `yaml:"guards"`
 	// Accounts is the set of provider connections rules draw their
 	// calendars from.
 	Accounts []Account `yaml:"accounts"`
@@ -50,14 +56,23 @@ type Config struct {
 
 // Notifications configures the operator notification channel.
 type Notifications struct {
-	// DiscordWebhookURLEnv names the env var holding a Discord webhook URL.
-	// Empty/unset disables notifications; guard triggers and auth failures
-	// still emit metrics and logs either way.
-	DiscordWebhookURLEnv string `yaml:"discordWebhookURLEnv" doc:"optional"`
+	// WebhookURLEnv names the env var holding a webhook URL to POST
+	// notifications to, as `{"content": "..."}` — Discord's incoming-webhook
+	// shape, so one of those URLs needs nothing in front of it.
+	// Empty/unset disables notifications, which is the normal setup under
+	// Kubernetes: guard triggers and auth failures emit metrics and logs
+	// either way, and those are what an alerting stack is already watching.
+	WebhookURLEnv string `yaml:"webhookURLEnv" doc:"optional"`
+}
+
+// Guards tunes the hardening guards. Everything here governs detection, not
+// blocking: a guard records what it saw and the cycle proceeds.
+type Guards struct {
 	// MassDeleteFraction triggers the mass-delete guard
-	// (meridian_guard_triggers_total{guard="mass_delete"} plus a
-	// notification) when a rule deletes more than this fraction of its
-	// shadows in one cycle. 0 disables the guard.
+	// (meridian_guard_triggers_total{guard="mass_delete"}) when a rule
+	// deletes more than this fraction of its shadows in one cycle. The
+	// trigger also sends a notification when one is configured, but the
+	// metric and the log fire either way. 0 disables the guard.
 	MassDeleteFraction *float64 `yaml:"massDeleteFraction" doc:"optional,default=0.5"`
 }
 
@@ -179,10 +194,25 @@ type TransformConfig struct {
 	// all, not "mirror the source's color". Encoding is
 	// destination-provider-specific — see the rules cookbook.
 	Color *string `yaml:"color" doc:"optional"`
+	// Visibility sets who may read the shadow: public, private or
+	// confidential. Unset mirrors the source. Independent of Transparent,
+	// which governs whether the shadow blocks time rather than who sees it.
+	// Not templated: a closed set is worth more here than an expression
+	// free to produce a value no provider accepts.
+	Visibility *string `yaml:"visibility" doc:"optional"`
 }
 
 // Drop is the transform keyword that empties a string field.
 const Drop = "drop"
+
+// visibilityNames is the closed set transform.visibility accepts. Declared
+// as a literal so the chart's values.schema.json is generated from it and
+// cannot drift from what this validator enforces.
+var visibilityNames = map[string]model.Visibility{
+	"public":       model.VisibilityPublic,
+	"private":      model.VisibilityPrivate,
+	"confidential": model.VisibilityConfidential,
+}
 
 var weekdayNames = map[string]time.Weekday{
 	"mon": time.Monday, "tue": time.Tuesday, "wed": time.Wednesday,
@@ -227,11 +257,11 @@ func (c *Config) validate() error {
 			c.IntervalDuration = d
 		}
 	}
-	if c.Notifications.MassDeleteFraction == nil {
+	if c.Guards.MassDeleteFraction == nil {
 		half := 0.5
-		c.Notifications.MassDeleteFraction = &half
-	} else if f := *c.Notifications.MassDeleteFraction; f < 0 || f > 1 {
-		fail("notifications.massDeleteFraction %v: must be in [0,1]", f)
+		c.Guards.MassDeleteFraction = &half
+	} else if f := *c.Guards.MassDeleteFraction; f < 0 || f > 1 {
+		fail("guards.massDeleteFraction %v: must be in [0,1]", f)
 	}
 
 	calendars := map[string]bool{} // "<account>/<calendar>"
@@ -323,6 +353,11 @@ func (c *Config) validate() error {
 			}
 			if to == r.From {
 				fail("%s: destination equals source %q", where, to)
+			}
+		}
+		if tr := r.Transform; tr != nil && tr.Visibility != nil {
+			if _, ok := visibilityNames[*tr.Visibility]; !ok {
+				fail("%s: transform.visibility %q (want public, private or confidential)", where, *tr.Visibility)
 			}
 		}
 		if f := r.Filter; f != nil {

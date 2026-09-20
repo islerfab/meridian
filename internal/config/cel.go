@@ -33,6 +33,9 @@ type CELEvent struct {
 	Transparent bool `cel:"transparent"`
 	// Status is the event's status (e.g. confirmed, tentative, cancelled).
 	Status string `cel:"status"`
+	// Visibility is the event's disclosure class: public, private,
+	// confidential, or empty when the source inherits its calendar default.
+	Visibility string `cel:"visibility"`
 	// Organizer is the event organizer's identifier.
 	Organizer string `cel:"organizer"`
 	// Attendees lists attendee identifiers.
@@ -50,6 +53,7 @@ func celEventFromModel(ev model.Event) CELEvent {
 		AllDay:          ev.AllDay,
 		Transparent:     ev.Transparent,
 		Status:          string(ev.Status),
+		Visibility:      string(ev.Visibility),
 		Organizer:       ev.Organizer,
 		Attendees:       ev.Attendees,
 	}

@@ -28,6 +28,7 @@ const valuesSchemaPath = "deploy/meridian/values.schema.json"
 var configDefs = map[string]string{
 	"Config":          "config",
 	"Notifications":   "configNotifications",
+	"Guards":          "configGuards",
 	"Account":         "configAccount",
 	"CalendarConfig":  "configCalendar",
 	"RuleConfig":      "configRule",
@@ -123,9 +124,11 @@ func schemaForField(structName string, f configField, lits configLiterals) (map[
 			return nil, fmt.Errorf("want an array node to constrain, got %v", node["type"])
 		}
 		items["enum"] = lits.weekdays
+	case "TransformConfig.visibility":
+		node["enum"] = lits.visibilities
 	case "FilterConfig.window":
 		node["pattern"] = lits.windowPattern
-	case "Notifications.massDeleteFraction":
+	case "Guards.massDeleteFraction":
 		node["minimum"] = 0
 		node["maximum"] = 1
 	}
@@ -212,6 +215,7 @@ func typedDefault(jsonType any, raw string) (any, error) {
 // weekday or a window looks like.
 type configLiterals struct {
 	weekdays      []string
+	visibilities  []string
 	windowPattern string
 }
 
@@ -236,6 +240,8 @@ func parseConfigLiterals(path string) (configLiterals, error) {
 			switch vs.Names[0].Name {
 			case "weekdayNames":
 				lits.weekdays, err = compositeLitKeys(vs.Values[0])
+			case "visibilityNames":
+				lits.visibilities, err = compositeLitKeys(vs.Values[0])
 			case "windowRe":
 				lits.windowPattern, err = mustCompileArg(vs.Values[0])
 			default:
@@ -249,6 +255,9 @@ func parseConfigLiterals(path string) (configLiterals, error) {
 
 	if len(lits.weekdays) == 0 {
 		return lits, fmt.Errorf("%s: weekdayNames not found", path)
+	}
+	if len(lits.visibilities) == 0 {
+		return lits, fmt.Errorf("%s: visibilityNames not found", path)
 	}
 	if lits.windowPattern == "" {
 		return lits, fmt.Errorf("%s: windowRe not found", path)

@@ -16,6 +16,11 @@ import (
 // plain string like any other iCalendar property.
 const propColor = "COLOR"
 
+// propClass is RFC 5545's CLASS property (PUBLIC / PRIVATE / CONFIDENTIAL),
+// the iCalendar counterpart of Google's visibility. go-ical has no named
+// constant for it either.
+const propClass = "CLASS"
+
 // eventFromComponent normalizes one (expanded) VEVENT into the model.
 // Server-expanded instances arrive with UTC DATE-TIME values and a
 // RECURRENCE-ID on every instance (verified against sabre/dav 4.3.1);
@@ -45,6 +50,7 @@ func eventFromComponent(comp *ical.Component, calendarID string) (model.Event, e
 	if transp, _ := comp.Props.Text(ical.PropTransparency); strings.EqualFold(transp, "TRANSPARENT") {
 		ev.Transparent = true
 	}
+	ev.Visibility = parseVisibility(comp)
 	ev.Status = parseStatus(comp)
 	if org := comp.Props.Get(ical.PropOrganizer); org != nil {
 		ev.Organizer = stripMailto(org.Value)
@@ -80,6 +86,7 @@ func contentFromComponent(comp *ical.Component) (model.ShadowContent, error) {
 		c.Transparent = true
 	}
 	c.Color, _ = comp.Props.Text(propColor)
+	c.Visibility = parseVisibility(comp)
 	for _, child := range comp.Children {
 		if child.Name != ical.CompAlarm {
 			continue
@@ -135,6 +142,24 @@ func parseStatus(comp *ical.Component) model.Status {
 		return model.StatusCancelled
 	default:
 		return model.StatusConfirmed
+	}
+}
+
+// parseVisibility reads CLASS. RFC 5545 allows private extension values
+// beyond the three standard ones; anything unrecognized normalizes to the
+// default rather than being passed through, since the model's job is to
+// give the engine one vocabulary both protocols speak.
+func parseVisibility(comp *ical.Component) model.Visibility {
+	class, _ := comp.Props.Text(propClass)
+	switch strings.ToUpper(class) {
+	case "PUBLIC":
+		return model.VisibilityPublic
+	case "PRIVATE":
+		return model.VisibilityPrivate
+	case "CONFIDENTIAL":
+		return model.VisibilityConfidential
+	default:
+		return model.VisibilityDefault
 	}
 }
 
@@ -205,6 +230,9 @@ func buildShadowCalendar(uid string, shadow model.Shadow) *ical.Calendar {
 	}
 	if c.Color != "" {
 		set(propColor, c.Color)
+	}
+	if c.Visibility != model.VisibilityDefault {
+		set(propClass, strings.ToUpper(string(c.Visibility)))
 	}
 	for key, value := range shadow.Marker.Properties(model.ProtocolCalDAV) {
 		set(key, value)

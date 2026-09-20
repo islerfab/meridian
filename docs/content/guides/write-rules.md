@@ -53,6 +53,27 @@ transform:
 
 `transparent` is the only boolean transform. Unset copies the source; `true` or `false` force it.
 
+## Set who can see a copy
+
+`transform` decides what a copy says. `visibility` is the other half of that question: who may read it at all. Both are independent of whether the copy blocks time, which is `transparent`'s job.
+
+```yaml
+rules:
+  - id: work-to-private
+    from: work/main
+    to: [private/main]
+    # A fuller mirror: titles and details survive, so readership matters.
+    transform:
+      visibility: private
+```
+
+Three values: `public`, `private` and `confidential`. They map onto Google's visibility field and iCalendar's `CLASS` property, so one rule means the same thing whichever provider owns the destination. Google accepts `confidential` and treats it as `private`, where it exists for compatibility.
+
+Unset mirrors the source. The field earns its keep on mirrors that preserve real content, or when you'd rather colleagues didn't see an entry at all. A rule that already rewrites the title to `Busy` and drops the description has little left to hide, and can ignore it.
+
+> [!WARNING]
+> **`private` hides a copy from colleagues, not from whoever runs the calendar.** A Google Workspace administrator can read any event in the domain, and the operator of a CalDAV server can read its database. Where an employer seeing an event would matter, don't mirror the content: strip it to `Busy`, drop the description, or leave it out of the rule entirely.
+
 ## Recolour and nothing else
 
 ```yaml

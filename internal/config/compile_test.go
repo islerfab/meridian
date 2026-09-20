@@ -152,3 +152,57 @@ func TestTransformOverrides(t *testing.T) {
 		t.Errorf("reminders: %v", got.Reminders)
 	}
 }
+
+// Visibility is copy-with-override like Transparent, not override-only like
+// Color: it has a real source counterpart on both protocols, so an unset
+// transform mirrors it.
+func TestTransformVisibility(t *testing.T) {
+	ev := timed("2026-08-10T10:00:00Z", "2026-08-10T11:00:00Z")
+	ev.Visibility = model.VisibilityConfidential
+
+	tr, err := compileTransform(RuleConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tr(ev); got.Visibility != model.VisibilityConfidential {
+		t.Errorf("unset transform: visibility = %q, want the source's %q", got.Visibility, ev.Visibility)
+	}
+
+	forced := "private"
+	tr, err = compileTransform(RuleConfig{Transform: &TransformConfig{Visibility: &forced}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tr(ev); got.Visibility != model.VisibilityPrivate {
+		t.Errorf("override: visibility = %q, want private", got.Visibility)
+	}
+
+	// A source that inherits its calendar default must be forceable to a
+	// concrete class — that is the whole point for a privacy mirror.
+	ev.Visibility = model.VisibilityDefault
+	if got := tr(ev); got.Visibility != model.VisibilityPrivate {
+		t.Errorf("override from default: visibility = %q, want private", got.Visibility)
+	}
+}
+
+// Visibility is exposed to filter.when, so a rule can select on it without
+// the transform touching anything.
+func TestCELVisibility(t *testing.T) {
+	env, err := newCELEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	prg, err := compileWhen(env, `event.visibility == "private"`)
+	if err != nil {
+		t.Fatalf("compiling a visibility expression: %v", err)
+	}
+	ev := timed("2026-08-10T10:00:00Z", "2026-08-10T11:00:00Z")
+	ev.Visibility = model.VisibilityPrivate
+	out, _, err := prg.Eval(map[string]any{"event": celEventFromModel(ev)})
+	if err != nil {
+		t.Fatalf("eval: %v", err)
+	}
+	if out.Value() != true {
+		t.Errorf("event.visibility did not match a private event")
+	}
+}

@@ -55,6 +55,12 @@ These aren't vulnerabilities in Meridian, though they may still ruin your day:
   calendar first.
 - A compromised provider account. Meridian has no way to detect that and no
   way to help.
+- **The people who run a calendar can read it.** A Google Workspace
+  administrator sees every event in the domain, and so does whoever operates
+  your CalDAV server. `transform.visibility` governs what colleagues see, not
+  what administrators see. Mirroring content into a calendar you don't
+  control puts it within their reach whatever the copy is marked, so the
+  protection that holds is not sending the content.
 
 ## Supply chain
 
@@ -89,3 +95,21 @@ the module. CI runs it on every push, and a scheduled job runs it weekly so a
 quiet month doesn't mean an unnoticed advisory. It's call-graph aware, so it
 reports what this code actually reaches rather than everything in the
 dependency tree. Dependency updates come through Dependabot.
+
+### Why the image scan shows one vulnerability
+
+Artifact Hub scans the released image and reports a single finding of unknown
+severity: [GO-2026-5932](https://pkg.go.dev/vuln/GO-2026-5932), against
+`golang.org/x/crypto`. The advisory declares that module's `openpgp` packages
+unmaintained and unsafe to use. It carries no fixed version and is not going
+to get one.
+
+Meridian never imports `openpgp`. The module is linked in because the Google
+Calendar client reaches `x/crypto/cryptobyte` by way of `s2a-go`, and image
+scanners match advisories against the module list embedded in the binary
+rather than the packages a build actually calls. govulncheck does look at the
+call graph, and reports zero.
+
+Nothing here can annotate the finding away — Artifact Hub's scanner accepts no
+VEX document and no ignore file. It clears when the Google client stops
+pulling `x/crypto` in, and not before.

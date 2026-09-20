@@ -61,6 +61,13 @@ type Marker struct {
 	Instance    string
 	RepairTries int
 	V           int
+	// Future is set when V is newer than this binary understands. The
+	// marker's core still decoded, so the shadow is known to be ours and
+	// must be left strictly alone: not updated, not deleted, and above all
+	// not treated as missing, which would create a duplicate beside it.
+	// This is what makes rolling a deployment back across a marker version
+	// bump safe.
+	Future bool
 }
 
 // NewMarker builds a current-version marker for desired content.
@@ -137,6 +144,9 @@ func (m Marker) Properties(p Protocol) map[string]string {
 // rather than treating absence as malformed. Properties/NewMarker always
 // write the current MarkerVersion — nothing here ever produces an
 // old-format marker.
+//
+// Versions NEWER than this binary are not an error: they decode to a Future
+// marker that the engine leaves untouched. See Marker.Future.
 func ParseMarker(props map[string]string, p Protocol) (m Marker, found bool, err error) {
 	srcKey, ruleKey, hashKey, instanceKey, repairKey, vKey := keysFor(p)
 	srcRaw, srcOK := props[srcKey]
@@ -177,6 +187,14 @@ func ParseMarker(props map[string]string, p Protocol) (m Marker, found bool, err
 			return Marker{}, true, fmt.Errorf("marker repair count %q: %w", repairRaw, err)
 		}
 	default:
+		if v > MarkerVersion {
+			// Written by a newer meridian: the core decoded, so this is
+			// provably one of ours. Hand it back flagged rather than as an
+			// error — an error would make the engine skip it, and a skipped
+			// shadow looks missing, so the next cycle would create a second
+			// copy beside it.
+			return Marker{Src: src, Rule: rule, Hash: hash, Instance: instance, V: v, Future: true}, true, nil
+		}
 		return Marker{}, true, fmt.Errorf("marker version %d not supported (recognize 1-%d)", v, MarkerVersion)
 	}
 

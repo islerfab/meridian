@@ -29,6 +29,7 @@ type TemplateContext struct {
 	SourceCalendar  string
 	Organizer       string
 	Status          string
+	Visibility      string
 	Start           time.Time
 	End             time.Time
 	AllDay          bool
@@ -191,6 +192,7 @@ type compiledTransform struct {
 	reminders                    []int
 	color                        *template.Template // nil = no color override (no source to copy)
 	dropColor                    bool
+	visibility                   *model.Visibility // nil = copy source
 }
 
 func compileTransform(rc RuleConfig) (func(model.Event) model.ShadowContent, error) {
@@ -210,6 +212,10 @@ func compileTransform(rc RuleConfig) (func(model.Event) model.ShadowContent, err
 		ct.reminders = tc.Reminders
 		if ct.color, ct.dropColor, err = compileField("color", tc.Color); err != nil {
 			return nil, err
+		}
+		if tc.Visibility != nil {
+			v := model.Visibility(*tc.Visibility)
+			ct.visibility = &v
 		}
 	}
 	return ct.apply, nil
@@ -244,6 +250,7 @@ func (ct compiledTransform) apply(ev model.Event) model.ShadowContent {
 		SourceCalendar:  ev.Ref.Calendar,
 		Organizer:       ev.Organizer,
 		Status:          string(ev.Status),
+		Visibility:      string(ev.Visibility),
 		Start:           ev.Start,
 		End:             ev.End,
 		AllDay:          ev.AllDay,
@@ -259,6 +266,10 @@ func (ct compiledTransform) apply(ev model.Event) model.ShadowContent {
 		Location:    stringField(ev.Location, ct.location, ct.dropLoc, tctx),
 		Reminders:   ct.reminders,
 		Color:       colorField(ct.color, ct.dropColor, tctx),
+		Visibility:  ev.Visibility,
+	}
+	if ct.visibility != nil {
+		content.Visibility = *ct.visibility
 	}
 	if ct.transparent != nil {
 		content.Transparent = *ct.transparent
@@ -441,7 +452,7 @@ func normalizePath(p string) string {
 
 // BuildNotifier resolves the notification channel (Nop when unconfigured).
 func BuildNotifier(cfg *Config) (notify.Notifier, error) {
-	envName := cfg.Notifications.DiscordWebhookURLEnv
+	envName := cfg.Notifications.WebhookURLEnv
 	if envName == "" {
 		return notify.Nop{}, nil
 	}
@@ -449,7 +460,7 @@ func BuildNotifier(cfg *Config) (notify.Notifier, error) {
 	if url == "" {
 		return nil, fmt.Errorf("notifications: env var %s is empty", envName)
 	}
-	return &notify.Discord{WebhookURL: url}, nil
+	return &notify.Webhook{URL: url}, nil
 }
 
 func requireEnv(name, account string) (string, error) {

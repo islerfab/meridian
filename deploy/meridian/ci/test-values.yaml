@@ -13,7 +13,7 @@ config:
   instance: example
   interval: 5m
   notifications:
-    discordWebhookURLEnv: DISCORD_WEBHOOK_URL
+    webhookURLEnv: MERIDIAN_NOTIFY_WEBHOOK
   accounts:
     - name: work
       type: caldav

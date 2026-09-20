@@ -21,12 +21,18 @@
       "doc": "Configures the operator notification channel.",
       "fields": [
         {
-          "name": "discordWebhookURLEnv",
-          "doc": "Names the env var holding a Discord webhook URL.\nEmpty/unset disables notifications; guard triggers and auth failures\nstill emit metrics and logs either way."
-        },
+          "name": "webhookURLEnv",
+          "doc": "Names the env var holding a webhook URL to POST\nnotifications to, as `{\"content\": \"...\"}` — Discord's incoming-webhook\nshape, so one of those URLs needs nothing in front of it.\nEmpty/unset disables notifications, which is the normal setup under\nKubernetes: guard triggers and auth failures emit metrics and logs\neither way, and those are what an alerting stack is already watching."
+        }
+      ]
+    },
+    {
+      "title": "`guards`",
+      "doc": "Tunes the hardening guards. Everything here governs detection, not\nblocking: a guard records what it saw and the cycle proceeds.",
+      "fields": [
         {
           "name": "massDeleteFraction",
-          "doc": "Triggers the mass-delete guard\n(meridian_guard_triggers_total{guard=\"mass_delete\"} plus a\nnotification) when a rule deletes more than this fraction of its\nshadows in one cycle. 0 disables the guard.",
+          "doc": "Triggers the mass-delete guard\n(meridian_guard_triggers_total{guard=\"mass_delete\"}) when a rule\ndeletes more than this fraction of its shadows in one cycle. The\ntrigger also sends a notification when one is configured, but the\nmetric and the log fire either way. 0 disables the guard.",
           "default": "0.5"
         }
       ]
@@ -194,6 +200,10 @@
         {
           "name": "color",
           "doc": "Has no source value to copy, so unset means no override at\nall, not \"mirror the source's color\". Encoding is\ndestination-provider-specific — see the rules cookbook."
+        },
+        {
+          "name": "visibility",
+          "doc": "Sets who may read the shadow: public, private or\nconfidential. Unset mirrors the source. Independent of Transparent,\nwhich governs whether the shadow blocks time rather than who sees it.\nNot templated: a closed set is worth more here than an expression\nfree to produce a value no provider accepts."
         }
       ]
     }
@@ -245,6 +255,11 @@
       {
         "name": "status",
         "doc": "The event's status (e.g. confirmed, tentative, cancelled).",
+        "celType": "string"
+      },
+      {
+        "name": "visibility",
+        "doc": "The event's disclosure class: public, private,\nconfidential, or empty when the source inherits its calendar default.",
         "celType": "string"
       },
       {

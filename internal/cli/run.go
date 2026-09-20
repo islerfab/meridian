@@ -136,15 +136,15 @@ func buildEngine(ctx context.Context, path string, log *slog.Logger) (*sync.Engi
 		return nil, 0, err
 	}
 	engine, err := sync.New(sync.Config{
-		InstanceID:               cfg.Instance,
-		Rules:                    rules,
-		Adapters:                 adapters,
-		Sweepers:                 sweepers,
-		CalendarKeys:             calendarKeys,
-		MassDeleteNotifyFraction: *cfg.Notifications.MassDeleteFraction,
-		Notifier:                 notifier,
-		Logger:                   log,
-		Metrics:                  sync.NewMetrics(prometheus.DefaultRegisterer),
+		InstanceID:         cfg.Instance,
+		Rules:              rules,
+		Adapters:           adapters,
+		Sweepers:           sweepers,
+		CalendarKeys:       calendarKeys,
+		MassDeleteFraction: *cfg.Guards.MassDeleteFraction,
+		Notifier:           notifier,
+		Logger:             log,
+		Metrics:            sync.NewMetrics(prometheus.DefaultRegisterer),
 	})
 	if err != nil {
 		return nil, 0, err

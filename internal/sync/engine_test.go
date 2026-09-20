@@ -153,7 +153,7 @@ func TestConvergeAndIdempotency(t *testing.T) {
 	}
 }
 
-// Guard 3: change detection is hash-vs-marker only, not hash-vs-observed.
+// Change detection is hash-vs-marker only, not hash-vs-observed.
 // Provider-side content normalization (title mangled on the destination) is
 // drift, and is healed via the bounded repair path — the repair op carries
 // reason="drift-repair", never diff()'s own "content-changed" reason. One
@@ -280,7 +280,7 @@ func TestShadowDriftBoundedRepair(t *testing.T) {
 	}
 }
 
-// Guard 1: ALL meridian-owned source events are skipped — a shadow can
+// Zombie guard: ALL meridian-owned source events are skipped — a shadow can
 // never be syncable content, killing the zombie-resurrection class
 // outright.
 func TestZombieGuardSkipsOwnedSourceEvents(t *testing.T) {
@@ -302,7 +302,7 @@ func TestZombieGuardSkipsOwnedSourceEvents(t *testing.T) {
 	}
 }
 
-// Guard 2 (superseded semantics): an empty-but-successful source fetch
+// Mass-delete guard (superseded semantics): an empty-but-successful source fetch
 // EMPTIES the destination — faithful mirroring. Detection fires (metric +
 // notification), deletes are never blocked.
 func TestEmptySourceEmptiesDestinationWithNotification(t *testing.T) {
@@ -313,7 +313,7 @@ func TestEmptySourceEmptiesDestinationWithNotification(t *testing.T) {
 	}
 	notifier := &capturingNotifier{}
 	e := newTestEngine(t, src, dst, func(c *Config) {
-		c.MassDeleteNotifyFraction = 0.5
+		c.MassDeleteFraction = 0.5
 		c.Notifier = notifier
 	})
 	e.RunCycle(context.Background())
@@ -343,7 +343,7 @@ func TestMassDeleteBelowThresholdIsSilent(t *testing.T) {
 	}
 	notifier := &capturingNotifier{}
 	e := newTestEngine(t, src, dst, func(c *Config) {
-		c.MassDeleteNotifyFraction = 0.5
+		c.MassDeleteFraction = 0.5
 		c.Notifier = notifier
 	})
 	e.RunCycle(context.Background())
@@ -358,7 +358,7 @@ func TestMassDeleteBelowThresholdIsSilent(t *testing.T) {
 	}
 }
 
-// Guard 4: orphan GC never touches shadows outside the window.
+// Windowed orphan GC never touches shadows outside the window.
 func TestWindowedGCLeavesOutOfWindowShadows(t *testing.T) {
 	src, dst := newFake(), newFake()
 	// A stale shadow way outside the window (e.g. left over from an old
@@ -387,7 +387,7 @@ func TestWindowedGCLeavesOutOfWindowShadows(t *testing.T) {
 	}
 }
 
-// Guard 5: a shadow deleted out from under us mid-cycle (tombstone) must
+// Tombstone tolerance: a shadow deleted out from under us mid-cycle must
 // not fail the rule; the next cycle recreates.
 func TestTombstoneToleranceOnUpdate(t *testing.T) {
 	src, dst := newFake(), newFake()
@@ -519,5 +519,67 @@ func TestNewValidatesWiring(t *testing.T) {
 		if _, err := New(Config{InstanceID: "inst-test", Rules: []Rule{r}, Adapters: ad}); err == nil {
 			t.Errorf("case %d (%+v): expected wiring error", i, r)
 		}
+	}
+}
+
+// A shadow written by a NEWER meridian must be left strictly alone. The
+// failure this pins down is not "it got edited" but "it got duplicated":
+// treating the marker as unreadable makes the shadow invisible, the source
+// then looks unmirrored, and the cycle creates a second copy beside it —
+// which is what a rollback across a marker version bump would do to every
+// event in the calendar.
+func TestFutureMarkerShadowIsLeftAlone(t *testing.T) {
+	src, dst := newFake(), newFake()
+	ev := srcEvent("a", "Standup", t0.Add(24*time.Hour))
+	src.events = []model.Event{ev}
+
+	future := model.NewMarker("inst-test", ev.Ref, "r1", busyTransform(ev))
+	future.V = model.MarkerVersion + 1
+	future.Future = true
+	future.Hash = "hash-in-a-format-this-binary-cannot-reproduce"
+	dst.shadows["existing"] = model.Shadow{
+		Ref:     model.ShadowRef{Calendar: "dst", ID: "existing"},
+		Content: busyTransform(ev),
+		Marker:  future,
+	}
+
+	e := newTestEngine(t, src, dst, nil)
+	e.RunCycle(context.Background())
+
+	if dst.creates != 0 {
+		t.Errorf("creates=%d, want 0 — a future-version shadow was treated as missing and duplicated", dst.creates)
+	}
+	if dst.updates != 0 || dst.deletes != 0 {
+		t.Errorf("updates=%d deletes=%d, want 0/0 — a future-version shadow must not be written", dst.updates, dst.deletes)
+	}
+	if len(dst.shadows) != 1 {
+		t.Errorf("shadows=%d, want 1", len(dst.shadows))
+	}
+}
+
+// The same shadow must also not be reported as drifted: its hash is in an
+// unreproducible format, so a naive comparison would flag every shadow on
+// the calendar and burn the repair budget on all of them.
+func TestFutureMarkerShadowIsNotDrift(t *testing.T) {
+	src, dst := newFake(), newFake()
+	ev := srcEvent("a", "Standup", t0.Add(24*time.Hour))
+	src.events = []model.Event{ev}
+
+	future := model.NewMarker("inst-test", ev.Ref, "r1", busyTransform(ev))
+	future.V = model.MarkerVersion + 1
+	future.Future = true
+	future.Hash = "unreproducible"
+	dst.shadows["existing"] = model.Shadow{
+		Ref:     model.ShadowRef{Calendar: "dst", ID: "existing"},
+		Content: busyTransform(ev),
+		Marker:  future,
+	}
+
+	m := NewMetrics(nil)
+	e := newTestEngine(t, src, dst, func(c *Config) { c.Metrics = m })
+	e.RunCycle(context.Background())
+
+	if got := testutil.ToFloat64(m.ShadowDrift.WithLabelValues("r1", "dst")); got != 0 {
+		t.Errorf("shadow drift = %v, want 0", got)
 	}
 }

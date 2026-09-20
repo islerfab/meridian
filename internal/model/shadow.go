@@ -26,6 +26,12 @@ type ShadowContent struct {
 
 	Transparent bool
 
+	// Visibility is the shadow's disclosure class. Unlike Color it has a
+	// source counterpart, so an unset transform copies the source's value
+	// rather than leaving it alone; empty means write nothing and inherit
+	// the destination calendar's default.
+	Visibility Visibility
+
 	// Reminders holds minutes-before-start reminder offsets to set on the
 	// shadow (empty = none). Part of desired content: changing a rule's
 	// reminders must re-write its shadows, so it participates in the hash.

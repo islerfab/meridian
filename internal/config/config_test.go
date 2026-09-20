@@ -12,7 +12,8 @@ const validYAML = `
 instance: test-instance
 interval: 2m
 notifications:
-  discordWebhookURLEnv: MERIDIAN_DISCORD_WEBHOOK
+  webhookURLEnv: MERIDIAN_NOTIFY_WEBHOOK
+guards:
   massDeleteFraction: 0.7
 accounts:
   - name: private
@@ -45,6 +46,7 @@ rules:
       title: "Busy"
       description: drop
       reminders: [15]
+      visibility: private
 `
 
 func loadString(t *testing.T, content string) (*Config, error) {
@@ -64,8 +66,8 @@ func TestLoadValid(t *testing.T) {
 	if cfg.Instance != "test-instance" || cfg.IntervalDuration != 2*time.Minute {
 		t.Errorf("cfg = %+v", cfg)
 	}
-	if *cfg.Notifications.MassDeleteFraction != 0.7 {
-		t.Errorf("massDeleteFraction = %v", *cfg.Notifications.MassDeleteFraction)
+	if *cfg.Guards.MassDeleteFraction != 0.7 {
+		t.Errorf("massDeleteFraction = %v", *cfg.Guards.MassDeleteFraction)
 	}
 	if _, err := CompileRules(cfg); err != nil {
 		t.Errorf("CompileRules: %v", err)
@@ -100,8 +102,8 @@ rules:
 	if cfg.IntervalDuration != 5*time.Minute {
 		t.Errorf("default interval = %v", cfg.IntervalDuration)
 	}
-	if *cfg.Notifications.MassDeleteFraction != 0.5 {
-		t.Errorf("default massDeleteFraction = %v", *cfg.Notifications.MassDeleteFraction)
+	if *cfg.Guards.MassDeleteFraction != 0.5 {
+		t.Errorf("default massDeleteFraction = %v", *cfg.Guards.MassDeleteFraction)
 	}
 }
 
@@ -111,6 +113,7 @@ func TestLoadRejects(t *testing.T) {
 		"missing instance":   {strings.Replace(validYAML, "instance: test-instance", "instance: \"\"", 1), "instance is required"},
 		"bad interval":       {strings.Replace(validYAML, "interval: 2m", "interval: fast", 1), "interval"},
 		"bad fraction":       {strings.Replace(validYAML, "massDeleteFraction: 0.7", "massDeleteFraction: 1.5", 1), "massDeleteFraction"},
+		"bad visibility":     {strings.Replace(validYAML, "visibility: private", "visibility: secret", 1), "transform.visibility"},
 		"bad weekday":        {strings.Replace(validYAML, "weekdays: [mon, tue, wed, thu, fri]", "weekdays: [monday]", 1), "weekday"},
 		"bad window":         {strings.Replace(validYAML, `window: "08:00-18:00"`, `window: "8-18"`, 1), "window"},
 		"inverted window":    {strings.Replace(validYAML, `window: "08:00-18:00"`, `window: "18:00-08:00"`, 1), "midnight"},

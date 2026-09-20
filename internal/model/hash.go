@@ -9,12 +9,6 @@ import (
 	"time"
 )
 
-// hashPrefix versions the canonical serialization itself. Bumping it (or
-// changing anything below) changes every hash and therefore rewrites every
-// shadow on the next cycle — the format is a persisted contract, treat it
-// like a wire format.
-const hashPrefix = "meridian-hash-v2" // v2: added color field
-
 // ContentHash computes the change-detection hash stored in the marker:
 // SHA-256 (full hex) over a canonical, versioned serialization of the
 // post-transform desired content. Provider-returned field values are never
@@ -28,6 +22,12 @@ func ContentHash(c ShadowContent) string {
 // one field per line in the order below, string values escaped so embedded
 // newlines cannot forge field boundaries, times normalized to UTC RFC 3339,
 // reminders sorted ascending and comma-joined.
+//
+// There is no format version mixed in, on purpose. A hash is only ever
+// compared against another hash of the same desired content, so a change
+// here rewrites exactly the shadows whose serialization actually differs —
+// a new field rewrites everything, while a normalization fix that is a
+// no-op for most events leaves those events alone.
 func canonicalContent(c ShadowContent) string {
 	reminders := make([]string, len(c.Reminders))
 	sorted := append([]int(nil), c.Reminders...)
@@ -37,8 +37,6 @@ func canonicalContent(c ShadowContent) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(hashPrefix)
-	b.WriteByte('\n')
 	writeField(&b, "title", escapeHashValue(c.Title))
 	writeField(&b, "description", escapeHashValue(c.Description))
 	writeField(&b, "location", escapeHashValue(c.Location))
@@ -48,6 +46,7 @@ func canonicalContent(c ShadowContent) string {
 	writeField(&b, "transparent", strconv.FormatBool(c.Transparent))
 	writeField(&b, "reminders", strings.Join(reminders, ","))
 	writeField(&b, "color", escapeHashValue(c.Color))
+	writeField(&b, "visibility", escapeHashValue(string(c.Visibility)))
 	return b.String()
 }
 

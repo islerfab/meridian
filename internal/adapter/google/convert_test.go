@@ -223,6 +223,10 @@ func TestClassify(t *testing.T) {
 		{g(403, "forbidden"), adapter.ErrAuthFailed},
 		{g(403, "rateLimitExceeded"), adapter.ErrRateLimited},
 		{g(403, "userRateLimitExceeded"), adapter.ErrRateLimited},
+		{g(403, "dailyLimitExceeded"), adapter.ErrRateLimited},
+		// A 403 carrying no reason at all: quota is the guess that
+		// retries forever, so the safe reading is "needs a human".
+		{g(403), adapter.ErrAuthFailed},
 		{g(429), adapter.ErrRateLimited},
 		{g(500), adapter.ErrTransient},
 		{g(503), adapter.ErrTransient},
@@ -234,5 +238,41 @@ func TestClassify(t *testing.T) {
 		if got := classify(c.err); !errors.Is(got, c.want) {
 			t.Errorf("classify(%v) = %v, want %v", c.err, got, c.want)
 		}
+	}
+}
+
+func TestVisibilityFromGoogle(t *testing.T) {
+	cases := map[string]model.Visibility{
+		"public":       model.VisibilityPublic,
+		"private":      model.VisibilityPrivate,
+		"confidential": model.VisibilityConfidential,
+		// "default" is Google saying "inherit from the calendar", which is
+		// what the empty value means — not a fourth class.
+		"default": model.VisibilityDefault,
+		"":        model.VisibilityDefault,
+		"bogus":   model.VisibilityDefault,
+	}
+	for in, want := range cases {
+		if got := visibilityFromGoogle(in); got != want {
+			t.Errorf("visibilityFromGoogle(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// An empty Visibility must leave the field unset so Google applies the
+// destination calendar's default; sending "public" instead would override
+// it with the most exposed option available.
+func TestGoogleFromShadowVisibility(t *testing.T) {
+	base := model.ShadowContent{Title: "Busy", Start: time.Now().UTC(), End: time.Now().UTC().Add(time.Hour)}
+
+	item := googleFromShadow(model.Shadow{Content: base, Marker: model.Marker{}})
+	if item.Visibility != "" {
+		t.Errorf("default visibility sent %q, want empty", item.Visibility)
+	}
+
+	base.Visibility = model.VisibilityPrivate
+	item = googleFromShadow(model.Shadow{Content: base, Marker: model.Marker{}})
+	if item.Visibility != "private" {
+		t.Errorf("visibility = %q, want private", item.Visibility)
 	}
 }

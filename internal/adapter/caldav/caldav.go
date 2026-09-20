@@ -90,6 +90,13 @@ func (a *Adapter) ListEvents(ctx context.Context, window adapter.Window) ([]mode
 				a.log.Warn("skipping unparseable source event", "path", obj.Path, "err", err)
 				continue
 			}
+			if ev.Status == model.StatusCancelled {
+				// A cancelled event does not occupy time, so mirroring one
+				// would write a shadow that blocks a slot nobody is using.
+				// Google's adapter drops these too; the engine must not be
+				// able to tell the two protocols apart.
+				continue
+			}
 			events = append(events, ev)
 		}
 	}

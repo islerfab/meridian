@@ -70,7 +70,7 @@ func TestSweepDeletesStaleShadows(t *testing.T) {
 	e := newTestEngine(t, src, dst, func(c *Config) {
 		// 1 stale of 2 own per calendar = 50%; threshold is strictly
 		// exceeded at 0.4.
-		c.MassDeleteNotifyFraction = 0.4
+		c.MassDeleteFraction = 0.4
 		c.Notifier = notifier
 		c.Sweepers = map[string]adapter.AccountSweeper{
 			"acct": &fakeSweeper{calendars: map[string]*fakeAdapter{

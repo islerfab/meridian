@@ -293,3 +293,56 @@ func TestShadowRoundTripAllDay(t *testing.T) {
 		}
 	}
 }
+
+func TestVisibilityRoundTrip(t *testing.T) {
+	cases := map[string]model.Visibility{
+		"CLASS:PUBLIC":                  model.VisibilityPublic,
+		"CLASS:PRIVATE":                 model.VisibilityPrivate,
+		"CLASS:CONFIDENTIAL":            model.VisibilityConfidential,
+		"CLASS:private":                 model.VisibilityPrivate, // case-insensitive
+		"":                              model.VisibilityDefault, // absent
+		"CLASS:X-SOMETHING-NONSTANDARD": model.VisibilityDefault, // RFC 5545 allows extensions; we do not carry them
+	}
+	for class, want := range cases {
+		t.Run(class, func(t *testing.T) {
+			body := "BEGIN:VEVENT\nUID:u@test\nDTSTART:20260910T090000Z\nDTEND:20260910T100000Z\nSUMMARY:S"
+			if class != "" {
+				body += "\n" + class
+			}
+			body += "\nEND:VEVENT"
+			ev, err := eventFromComponent(parseVEVENT(t, body), "cal")
+			if err != nil {
+				t.Fatalf("eventFromComponent: %v", err)
+			}
+			if ev.Visibility != want {
+				t.Errorf("visibility = %q, want %q", ev.Visibility, want)
+			}
+		})
+	}
+}
+
+// The default must write no CLASS at all rather than CLASS:PUBLIC —
+// inheriting the destination calendar's setting is the whole meaning of the
+// empty value, and PUBLIC would override it with the most exposed option.
+func TestBuildShadowCalendarVisibility(t *testing.T) {
+	render := func(v model.Visibility) string {
+		cal := buildShadowCalendar("uid-1", model.Shadow{
+			Content: model.ShadowContent{
+				Title: "Busy", Start: time.Now().UTC(), End: time.Now().UTC().Add(time.Hour),
+				Visibility: v,
+			},
+			Marker: model.NewMarker("inst", model.EventRef{Calendar: "c", UID: "u"}, "r", model.ShadowContent{}),
+		})
+		var b strings.Builder
+		if err := ical.NewEncoder(&b).Encode(cal); err != nil {
+			t.Fatalf("encode: %v", err)
+		}
+		return b.String()
+	}
+	if got := render(model.VisibilityDefault); strings.Contains(got, "CLASS") {
+		t.Errorf("default visibility wrote a CLASS property:\n%s", got)
+	}
+	if got := render(model.VisibilityPrivate); !strings.Contains(got, "CLASS:PRIVATE") {
+		t.Errorf("private visibility did not write CLASS:PRIVATE:\n%s", got)
+	}
+}

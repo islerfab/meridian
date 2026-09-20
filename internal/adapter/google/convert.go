@@ -44,6 +44,7 @@ func eventFromGoogle(item *calendar.Event, calendarID string) (model.Event, erro
 	ev.Description = item.Description
 	ev.Location = item.Location
 	ev.Transparent = item.Transparency == "transparent"
+	ev.Visibility = visibilityFromGoogle(item.Visibility)
 	switch item.Status {
 	case "tentative":
 		ev.Status = model.StatusTentative
@@ -101,6 +102,7 @@ func shadowFromGoogle(item *calendar.Event, calendarID string) (model.Shadow, er
 		AllDay:      allDay,
 		Transparent: item.Transparency == "transparent",
 		Color:       item.ColorId,
+		Visibility:  visibilityFromGoogle(item.Visibility),
 	}
 	if item.Reminders != nil {
 		for _, o := range item.Reminders.Overrides {
@@ -140,6 +142,9 @@ func googleFromShadow(shadow model.Shadow) *calendar.Event {
 	if c.Transparent {
 		item.Transparency = "transparent"
 	}
+	// Left unset, Google applies the calendar's default — which is exactly
+	// what VisibilityDefault means, so an empty value is not sent.
+	item.Visibility = string(c.Visibility)
 	for _, m := range c.Reminders {
 		item.Reminders.Overrides = append(item.Reminders.Overrides, &calendar.EventReminder{
 			Method:  "popup",
@@ -172,6 +177,23 @@ func toEventDateTime(t time.Time, allDay bool) *calendar.EventDateTime {
 		return &calendar.EventDateTime{Date: t.UTC().Format("2006-01-02")}
 	}
 	return &calendar.EventDateTime{DateTime: t.UTC().Format(time.RFC3339), TimeZone: "UTC"}
+}
+
+// visibilityFromGoogle normalizes the API's visibility field. "default" is
+// Google's way of saying "inherit from the calendar", which carries no
+// audience of its own and so maps to the empty value rather than to a
+// fourth class the model would have to carry.
+func visibilityFromGoogle(v string) model.Visibility {
+	switch v {
+	case "public":
+		return model.VisibilityPublic
+	case "private":
+		return model.VisibilityPrivate
+	case "confidential":
+		return model.VisibilityConfidential
+	default:
+		return model.VisibilityDefault
+	}
 }
 
 func firstNonEmpty(values ...string) string {

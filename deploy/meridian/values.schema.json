@@ -13,6 +13,10 @@
           },
           "type": "array"
         },
+        "guards": {
+          "$ref": "#/definitions/configGuards",
+          "description": "Tunes the hardening guards. They are on by default and work\nwhether or not notifications are configured."
+        },
         "instance": {
           "description": "This Meridian instance's identity, embedded in every\nownership marker it writes. Must be unique across any instances\nsharing a destination, and stable for the instance's lifetime —\nchanging it orphans every shadow the instance previously wrote (they\nbecome invisible to it; `meridian wipe --instance \u003cold\u003e` cleans them\nup).",
           "type": "string"
@@ -24,7 +28,7 @@
         },
         "notifications": {
           "$ref": "#/definitions/configNotifications",
-          "description": "The operator notification channel; leaving it unset\ndisables notifications without disabling the metrics and logs that\ncover the same events."
+          "description": "The operator notification channel. Leaving it unset\ndisables delivery without disabling the metrics and logs covering the\nsame events, so it is redundant wherever those are already alerted\non, and the only out-of-band signal where they are not."
         },
         "rules": {
           "description": "The set of one-way mirrors this instance reconciles. At\nleast one is required.",
@@ -151,23 +155,30 @@
       },
       "type": "object"
     },
-    "configNotifications": {
+    "configGuards": {
       "additionalProperties": false,
-      "description": "Configures the operator notification channel.",
+      "description": "Tunes the hardening guards. Everything here governs detection, not\nblocking: a guard records what it saw and the cycle proceeds.",
       "properties": {
-        "discordWebhookURLEnv": {
-          "description": "Names the env var holding a Discord webhook URL.\nEmpty/unset disables notifications; guard triggers and auth failures\nstill emit metrics and logs either way.",
-          "type": "string"
-        },
         "massDeleteFraction": {
           "default": 0.5,
-          "description": "Triggers the mass-delete guard\n(meridian_guard_triggers_total{guard=\"mass_delete\"} plus a\nnotification) when a rule deletes more than this fraction of its\nshadows in one cycle. 0 disables the guard.",
+          "description": "Triggers the mass-delete guard\n(meridian_guard_triggers_total{guard=\"mass_delete\"}) when a rule\ndeletes more than this fraction of its shadows in one cycle. The\ntrigger also sends a notification when one is configured, but the\nmetric and the log fire either way. 0 disables the guard.",
           "maximum": 1,
           "minimum": 0,
           "type": [
             "number",
             "null"
           ]
+        }
+      },
+      "type": "object"
+    },
+    "configNotifications": {
+      "additionalProperties": false,
+      "description": "Configures the operator notification channel.",
+      "properties": {
+        "webhookURLEnv": {
+          "description": "Names the env var holding a webhook URL to POST\nnotifications to, as `{\"content\": \"...\"}` — Discord's incoming-webhook\nshape, so one of those URLs needs nothing in front of it.\nEmpty/unset disables notifications, which is the normal setup under\nKubernetes: guard triggers and auth failures emit metrics and logs\neither way, and those are what an alerting stack is already watching.",
+          "type": "string"
         }
       },
       "type": "object"
@@ -245,6 +256,18 @@
           "description": "Forces the shadow's opacity regardless of the source\nevent's own transparency; unset copies the source's value.",
           "type": [
             "boolean",
+            "null"
+          ]
+        },
+        "visibility": {
+          "description": "Sets who may read the shadow: public, private or\nconfidential. Unset mirrors the source. Independent of Transparent,\nwhich governs whether the shadow blocks time rather than who sees it.\nNot templated: a closed set is worth more here than an expression\nfree to produce a value no provider accepts.",
+          "enum": [
+            "public",
+            "private",
+            "confidential"
+          ],
+          "type": [
+            "string",
             "null"
           ]
         }

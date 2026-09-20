@@ -135,17 +135,38 @@ func TestParseMarkerV1BackwardCompat(t *testing.T) {
 	}
 }
 
-// A version this binary predates (or no longer supports) must still error
-// loudly rather than silently misinterpreting an unknown shape — the
-// wipe/migrate fallback is for exactly this case.
+// A version below the supported range is a real corruption — nothing ever
+// wrote v0 — so it must error rather than be silently misinterpreted.
 func TestParseMarkerUnsupportedVersion(t *testing.T) {
-	for _, v := range []string{"0", "3", "99"} {
+	props := map[string]string{
+		GoogleKeySrc: "cal|uid|", GoogleKeyRule: "r", GoogleKeyHash: "h",
+		GoogleKeyInstance: "i", GoogleKeyV: "0",
+	}
+	if _, found, err := ParseMarker(props, ProtocolGoogle); !found || err == nil {
+		t.Errorf("version 0: found=%t err=%v, want found=true with error", found, err)
+	}
+}
+
+// A version this binary predates is NOT an error: the marker's core proves
+// the shadow is ours, and reporting it as malformed would make the engine
+// skip it — at which point the shadow looks missing and the next cycle
+// creates a duplicate beside it. This is what makes a rollback across a
+// marker bump safe, so it is asserted rather than assumed.
+func TestParseMarkerFutureVersion(t *testing.T) {
+	for _, v := range []string{"3", "99"} {
 		props := map[string]string{
 			GoogleKeySrc: "cal|uid|", GoogleKeyRule: "r", GoogleKeyHash: "h",
 			GoogleKeyInstance: "i", GoogleKeyV: v,
 		}
-		if _, found, err := ParseMarker(props, ProtocolGoogle); !found || err == nil {
-			t.Errorf("version %s: found=%t err=%v, want found=true with error", v, found, err)
+		m, found, err := ParseMarker(props, ProtocolGoogle)
+		if !found || err != nil {
+			t.Fatalf("version %s: found=%t err=%v, want found=true with no error", v, found, err)
+		}
+		if !m.Future {
+			t.Errorf("version %s: Future=false, want true", v)
+		}
+		if m.Rule != "r" || m.Instance != "i" || m.Hash != "h" {
+			t.Errorf("version %s: core fields not decoded: %+v", v, m)
 		}
 	}
 }
@@ -164,7 +185,6 @@ func TestParseMarkerMalformed(t *testing.T) {
 		"missing hash":        mutate(func(p map[string]string) { delete(p, GoogleKeyHash) }),
 		"only version":        {GoogleKeyV: "2"},
 		"non-numeric version": mutate(func(p map[string]string) { p[GoogleKeyV] = "one" }),
-		"future version":      mutate(func(p map[string]string) { p[GoogleKeyV] = "3" }),
 		"malformed src":       mutate(func(p map[string]string) { p[GoogleKeySrc] = "no-pipes-here" }),
 		"empty rule":          mutate(func(p map[string]string) { p[GoogleKeyRule] = "" }),
 		"empty instance":      mutate(func(p map[string]string) { p[GoogleKeyInstance] = "" }),

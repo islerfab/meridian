@@ -42,8 +42,8 @@ type Op struct {
 //
 //   - change detection: desired content hash vs the hash STORED IN THE
 //     MARKER; provider-returned field values are never compared
-//   - windowed orphan GC: deletes only shadows overlapping the window
-//     (guard 4) — shadows outside it are never touched
+//   - windowed orphan GC: deletes only shadows overlapping the window —
+//     shadows outside it are never touched
 //   - duplicates: one shadow per (rule, src); a hash-matching duplicate is
 //     kept over the first-listed one, extras deleted
 //   - shadows of OTHER rules are invisible here (caller filters by rule ID);
@@ -51,13 +51,22 @@ type Op struct {
 func diff(dest, instance, rule string, desired map[model.EventRef]model.ShadowContent, actual []model.Shadow, window adapter.Window) []Op {
 	var ops []Op
 
-	// Group the rule's shadows by source ref.
 	bysrc := make(map[model.EventRef][]model.Shadow)
+	future := make(map[model.EventRef]bool)
 	for _, s := range actual {
 		bysrc[s.Marker.Src] = append(bysrc[s.Marker.Src], s)
+		if s.Marker.Future {
+			future[s.Marker.Src] = true
+		}
 	}
 
 	for src, content := range desired {
+		// A newer meridian owns this source's shadow here. Its hash is in a
+		// format this binary cannot reproduce, so every comparison below
+		// would be meaningless: leave the whole source alone.
+		if future[src] {
+			continue
+		}
 		wantHash := model.ContentHash(content)
 		existing, ok := bysrc[src]
 		if !ok {
@@ -99,12 +108,15 @@ func diff(dest, instance, rule string, desired map[model.EventRef]model.ShadowCo
 		}
 	}
 
-	// Orphan GC, windowed (guard 4).
+	// Orphan GC, windowed.
 	for src, existing := range bysrc {
 		if _, wanted := desired[src]; wanted {
 			continue
 		}
 		for _, s := range existing {
+			if s.Marker.Future {
+				continue // a newer meridian's to collect, not ours
+			}
 			if !window.Overlaps(s.Content.Start, s.Content.End) {
 				continue // never GC outside the window
 			}

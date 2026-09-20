@@ -50,13 +50,13 @@ type Config struct {
 	Lookback  time.Duration
 	Lookahead time.Duration
 
-	// MassDeleteNotifyFraction triggers the mass-delete detection:
-	// deleting more than this fraction of a
-	// rule+destination's shadows in one cycle fires the guard metric and a
-	// notification. <= 0 disables detection (deletes still execute). The
+	// MassDeleteFraction triggers the mass-delete detection: deleting more
+	// than this fraction of a rule+destination's shadows in one cycle fires
+	// the guard metric, the log line, and a notification if one is
+	// configured. <= 0 disables detection (deletes still execute). The
 	// deletes are NEVER blocked — faithful mirroring, detection over
 	// prevention.
-	MassDeleteNotifyFraction float64
+	MassDeleteFraction float64
 
 	Notifier notify.Notifier
 	Logger   *slog.Logger
@@ -205,18 +205,21 @@ func (e *Engine) sweep(ctx context.Context, window adapter.Window) {
 					continue // guardrail: other instances are invisible
 				}
 				own++
+				if s.Marker.Future {
+					continue // a newer meridian's to collect, not ours
+				}
 				if allowed[s.Marker.Rule] {
 					continue
 				}
 				if !window.Overlaps(s.Content.Start, s.Content.End) {
-					continue // guard 4: never GC outside the window
+					continue // windowed orphan GC: never outside the window
 				}
 				stale = append(stale, s)
 			}
 			if len(stale) == 0 {
 				continue
 			}
-			if frac := e.cfg.MassDeleteNotifyFraction; frac > 0 && float64(len(stale))/float64(own) >= frac {
+			if frac := e.cfg.MassDeleteFraction; frac > 0 && float64(len(stale))/float64(own) >= frac {
 				e.cfg.Metrics.GuardTriggersTotal.WithLabelValues("sweep", "mass_delete").Inc()
 				msg := fmt.Sprintf("meridian: sweep is deleting %d of %d shadows on %s (%s) — stale rules; verify this config change was intended",
 					len(stale), own, dc.ProviderID, account)
@@ -248,7 +251,7 @@ func (e *Engine) reconcileRule(ctx context.Context, rule Rule, window adapter.Wi
 		return
 	}
 
-	// Desired set. Zombie guard (guard 1: skip ALL owned events): shadows
+	// Desired set. Zombie guard (skip ALL owned events): shadows
 	// are never syncable content.
 	desired := make(map[model.EventRef]model.ShadowContent)
 	for _, ev := range src.items {
@@ -287,6 +290,12 @@ func (e *Engine) reconcileRule(ctx context.Context, rule Rule, window adapter.Wi
 				continue
 			}
 			mine = append(mine, s)
+			if s.Marker.Future {
+				// Written by a newer meridian: its hash is in a format this
+				// binary cannot reproduce, so every shadow would look
+				// drifted. diff() already leaves these alone.
+				continue
+			}
 			if model.ContentHash(s.Content) == s.Marker.Hash {
 				continue // no drift
 			}
@@ -336,7 +345,7 @@ func (e *Engine) reconcileRule(ctx context.Context, rule Rule, window adapter.Wi
 }
 
 // executeOps applies planned ops. Per-op failures are logged and counted,
-// never fatal to other ops — with one tombstone nicety (guard 5): NotFound
+// never fatal to other ops — with one tombstone nicety: NotFound
 // on update/delete means the shadow is already gone; the next cycle
 // recreates it if still desired.
 func (e *Engine) executeOps(ctx context.Context, rule, dest string, ops []Op, log *slog.Logger) bool {
@@ -376,7 +385,7 @@ func (e *Engine) executeOps(ctx context.Context, rule, dest string, ops []Op, lo
 
 // detectMassDelete fires the detection (never blocks the deletes).
 func (e *Engine) detectMassDelete(ctx context.Context, rule, dest string, ops []Op, existing int, log *slog.Logger) {
-	frac := e.cfg.MassDeleteNotifyFraction
+	frac := e.cfg.MassDeleteFraction
 	if frac <= 0 || existing == 0 {
 		return
 	}
