@@ -40,14 +40,12 @@ A commit that doesn't follow the convention doesn't break anything locally, but 
 
 ## Opening a pull request
 
-Contributions come in as pull requests. While the project is pre-1.0 the
-maintainer pushes to `main` directly, which is the honest description of a
-one-person project rather than a rule anyone else needs to follow, and `main`
-is protected against force-push and deletion.
+Contributions come in as pull requests. Every change reaches `main` that way,
+maintainer included, and its checks have to pass before it can merge. `main` is
+also protected against force-push and deletion.
 
-`v1.0.0` changes that for everyone, maintainer included: every change will reach
-`main` through a pull request whose checks have passed. Review approvals are a
-separate question and stay optional until there is a second person to give one.
+Review approvals are a separate question, and they stay optional until there is
+a second person to give one.
 
 - Keep PRs focused — one logical change per PR is easier to review and easier for `svu` to classify.
 - Add or update tests for anything behavioral.

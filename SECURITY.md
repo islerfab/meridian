@@ -16,7 +16,7 @@ say so in the first line and it moves to the front.
 
 ## Supported versions
 
-Pre-1.0, only the latest release gets fixes. There are no backport branches.
+Only the latest release gets fixes. There are no backport branches.
 
 ## What Meridian does with your credentials
 

@@ -14,7 +14,9 @@ The canonical example: every appointment on your private calendar shows up as an
 
 ![One source calendar on the left holding three events. Two Meridian rules in the middle. On the right, the shadows each rule produces: the first filters to events before 14:00 and rewrites them as grey Busy blocks with the location stripped, the second mirrors all three events with their titles prefixed.](docs/static/images/meridian.excalidraw.svg)
 
-> **Status: pre-alpha, running unattended in production on one deployment.** The design is settled and the engine handles real traffic daily. The public interface — `rules.yaml`, the Helm chart, the CLI — may still change without notice before `v1.0.0`.
+> **Status: dogfood.** Meridian runs unattended on the maintainer's homelab, mirroring real calendars around the clock.
+>
+> It began as one person's use case, and generalizing past that was the point. Rules, filters and transforms are built to compose, so if your setup differs the difference should land in configuration rather than in a fork.
 
 ## What a config looks like
 

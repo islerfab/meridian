@@ -119,5 +119,5 @@ cosign verify ghcr.io/islerfab/charts/meridian:X.Y.Z \
 | [Configuration reference](https://islerfab.github.io/meridian/reference/configuration/) | Every field, generated from the source. |
 | [Limitations](https://islerfab.github.io/meridian/limitations/) | What it doesn't do, on purpose and otherwise. |
 
-Pre-1.0: the rules schema, the chart values and the CLI can still change
-without notice. [MIT licensed](https://github.com/islerfab/meridian/blob/main/LICENSE).
+Dogfood: Meridian runs unattended on the maintainer's homelab, mirroring real
+calendars around the clock. [MIT licensed](https://github.com/islerfab/meridian/blob/main/LICENSE).
