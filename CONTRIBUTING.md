@@ -33,11 +33,13 @@ weekly instead.
 
 This repo uses [Conventional Commits](https://www.conventionalcommits.org/) — not a style preference, the release pipeline depends on it. [`svu`](https://github.com/caarlos0/svu) derives the next version directly from commit types:
 
-- `fix:` → patch release.
+- `feat!:`, `fix!:`, or a `BREAKING CHANGE:` footer → major release.
 - `feat:` → minor release.
-- `feat!:`, `fix!:`, or a `BREAKING CHANGE:` footer → major release. [AGENTS.md](AGENTS.md#versioning) explains the mapping.
+- anything else, `fix:` and `docs:` and `chore:` alike → patch release.
 
-A commit that doesn't follow the convention doesn't break anything locally, but it does mean `svu` can't classify it correctly when a release is cut — please use the prefixes above.
+That last line is a local setting rather than svu's default, which bumps for `feat:` and `fix:` only. A docs correction or a dependency bump is worth shipping, and the docs site publishes from tags rather than from `main`, so a release that couldn't be cut would leave the fix stranded. [AGENTS.md](AGENTS.md#versioning) has the details.
+
+A commit that doesn't follow the convention still won't break anything locally, but it lands in the changelog ungrouped — please use the prefixes above.
 
 ## Making changes
 

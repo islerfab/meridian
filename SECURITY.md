@@ -75,7 +75,7 @@ keyless mode, so the signature is bound to this repository and workflow rather
 than to a private key somebody has to keep safe. To verify the image:
 
 ```bash
-cosign verify ghcr.io/islerfab/meridian:vX.Y.Z \
+cosign verify ghcr.io/islerfab/meridian:X.Y.Z \
   --certificate-identity-regexp '^https://github\.com/islerfab/meridian/\.github/workflows/release\.yml@refs/tags/v' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
@@ -88,7 +88,9 @@ cosign verify ghcr.io/islerfab/charts/meridian:X.Y.Z \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-Note the chart version carries no `v` prefix; the image tag does.
+Note where the `v` goes: the git tag and the GitHub release are `vX.Y.Z`, while
+both registry tags are plain `X.Y.Z`. Only the certificate identity keeps the
+prefix, because it points at the git ref the build ran from.
 
 `go tool task vuln` runs [govulncheck](https://go.dev/blog/govulncheck) against
 the module. CI runs it on every push, and a scheduled job runs it weekly so a

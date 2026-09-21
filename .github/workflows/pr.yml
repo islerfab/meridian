@@ -1,0 +1,140 @@
+name: PR
+
+# `edited` is included because the title decides the squash-merge outcome.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  pr:
+    runs-on: ubuntu-latest
+    steps:
+      # refs/pull/N/merge is base with this branch merged in, which is exactly
+      # what a merge-commit merge produces.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # svu reads tags
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # Both merge methods are enabled, and they consume different text:
+      #
+      #   merge commit  every commit lands verbatim, and the title becomes the
+      #                 merge commit BODY, where svu reads a breaking-change
+      #                 marker anywhere rather than only as a trailing footer.
+      #   squash        the title becomes the whole commit; the commits are
+      #                 discarded.
+      #
+      # So this fails only when NEITHER route is clean. A messy contribution
+      # with a good title stays squashable without a red required check.
+      - name: Check the pull request can land
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          cc='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: .+'
+
+          commits_ok=1
+          echo "Commits:"
+          # --no-merges skips what the Update branch button adds when main moves.
+          while IFS= read -r s; do
+            [ -n "$s" ] || continue
+            if printf '%s' "$s" | grep -qE "$cc"; then
+              echo "  ok   $s"
+            else
+              echo "  BAD  $s"
+              commits_ok=0
+            fi
+          done < <(git log --no-merges --format=%s "$BASE_SHA..$HEAD_SHA")
+
+          title_ok=0
+          if printf '%s' "$TITLE" | grep -qE "$cc"; then title_ok=1; fi
+          title_forges=0
+          if printf '%s' "$TITLE" | grep -qE 'BREAKING[ -]CHANGE:'; then title_forges=1; fi
+
+          merge_ok=0
+          if [ "$commits_ok" -eq 1 ] && [ "$title_forges" -eq 0 ]; then merge_ok=1; fi
+
+          echo "MERGE_OK=$merge_ok" >> "$GITHUB_ENV"
+          echo "SQUASH_OK=$title_ok" >> "$GITHUB_ENV"
+
+          {
+            echo "### How this can land"
+            echo
+            if [ "$merge_ok" -eq 1 ]; then
+              echo '- **Merge commit** — every commit is a Conventional Commit, so each gets its own changelog entry.'
+            elif [ "$title_forges" -eq 1 ]; then
+              echo '- **Merge commit — no.** The title reaches git as the merge commit body, where a breaking-change marker counts wherever it appears. Merging would release a new major version. Drop the colon, or squash instead.'
+            else
+              echo '- **Merge commit — no.** Not every commit is a Conventional Commit, and they land verbatim. Ask for a tidy-up, or squash.'
+            fi
+            if [ "$title_ok" -eq 1 ]; then
+              echo '- **Squash** — the title is a Conventional Commit and becomes the entire message. Commit authorship survives as `Co-authored-by`, signatures do not.'
+            else
+              echo '- **Squash — no.** The title is not a Conventional Commit, and under squash it becomes the whole commit message.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$merge_ok" -eq 0 ] && [ "$title_ok" -eq 0 ]; then
+            echo "::error::Neither a merge commit nor a squash would produce a usable history. Fix the commits or the title."
+            exit 1
+          fi
+
+      - name: Preview the version bump
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          merged="$(git rev-parse HEAD)"
+
+          git checkout -q --detach "$BASE_SHA"
+          current="$(go tool svu current)"
+          before="$(go tool svu next)"
+          # always:true makes svu offer a patch even on an untouched tree, which
+          # the release paths refuse. Report what main would really do.
+          if [ -z "$(git log "$current"..HEAD --oneline)" ]; then before="$current"; fi
+
+          git checkout -q --detach "$merged"
+          after_merge="$(go tool svu next)"
+
+          # A squash is the title as subject and this description as body
+          # (PR_TITLE / PR_BODY). The body matters: svu reads a breaking-change
+          # marker anywhere in one, so a stray mention in prose lands a major
+          # release. Collapsing the real tree rather than committing an empty
+          # one matters too, because a pull request that edits .svu.yml changes
+          # how svu reads the very commit it is landing.
+          git checkout -q --detach "$merged"
+          git reset -q --soft "$BASE_SHA"
+          git -c user.email=pr@local -c user.name=pr \
+              commit -q --allow-empty -m "$TITLE" -m "$BODY"
+          after_squash="$(go tool svu next)"
+
+          {
+            echo
+            echo "### Version preview"
+            echo
+            echo "| | version |"
+            echo "|---|---|"
+            echo "| Latest release | \`$current\` |"
+            echo "| \`main\` today | \`$before\` |"
+            if [ "${MERGE_OK:-0}" -eq 1 ]; then echo "| Merge commit | \`$after_merge\` |"; fi
+            if [ "${SQUASH_OK:-0}" -eq 1 ]; then echo "| Squash | \`$after_squash\` |"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for v in "$after_merge" "$after_squash"; do
+            if [ "${v%%.*}" != "${before%%.*}" ]; then
+              printf '\n**A major version bump is on the table here.** Intended only for a breaking change to the rules.yaml schema, the chart values or the CLI.\n' >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning::One merge route bumps the major version: $before -> $v"
+              break
+            fi
+          done
+
+          echo "base=$before  merge=$after_merge  squash=$after_squash"
