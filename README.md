@@ -3,7 +3,7 @@
 # Meridian
 
 [![CI](https://github.com/islerfab/meridian/actions/workflows/ci.yml/badge.svg)](https://github.com/islerfab/meridian/actions/workflows/ci.yml)
-[![Docs](https://img.shields.io/github/v/release/islerfab/meridian?label=docs&color=0969da)](https://islerfab.github.io/meridian/)
+[![Docs](https://img.shields.io/github/v/release/islerfab/meridian?label=docs&color=0969da)](https://meridian.islerfab.io/)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/meridian)](https://artifacthub.io/packages/search?repo=meridian)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/islerfab/meridian/badge)](https://scorecard.dev/viewer/?uri=github.com/islerfab/meridian)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -52,7 +52,7 @@ rules:
 
 That's the whole surface: accounts, the calendars they expose, and rules pointing one at another. `meridian validate` checks it without touching a credential or a provider, so it runs in CI on every change.
 
-Filters also take a [CEL](https://cel.dev/) predicate (`when: 'event.durationMinutes >= 30'`), and the three string transforms take Go templates (`title: "» {{ .Title }}"`). Worked examples are in [Write sync rules](https://islerfab.github.io/meridian/guides/write-rules/).
+Filters also take a [CEL](https://cel.dev/) predicate (`when: 'event.durationMinutes >= 30'`), and the three string transforms take Go templates (`title: "» {{ .Title }}"`). Worked examples are in [Write sync rules](https://meridian.islerfab.io/guides/write-rules/).
 
 ## Is this for you?
 
@@ -69,7 +69,7 @@ Filters also take a [CEL](https://cel.dev/) predicate (`when: 'event.durationMin
 - You need multi-user or multi-tenant operation from one install.
 - You need Exchange, Outlook, or Microsoft 365. Google Calendar and CalDAV only.
 
-[Limitations](https://islerfab.github.io/meridian/limitations/) has the full list, and it's worth two minutes before you invest more.
+[Limitations](https://meridian.islerfab.io/limitations/) has the full list, and it's worth two minutes before you invest more.
 
 ## How it works
 
@@ -83,11 +83,11 @@ Level-triggered reconciliation, the way a Kubernetes controller works. Each cycl
 
 | | |
 |---|---|
-| [Get started](https://islerfab.github.io/meridian/get-started/) | One rule syncing end to end on your laptop, in a few minutes. |
-| [Deploy](https://islerfab.github.io/meridian/guides/deploy/) | Helm chart, config modes, metrics. |
-| [Reference](https://islerfab.github.io/meridian/reference/) | Every config field, CLI flag and metric, generated from the source. |
-| [FAQ](https://islerfab.github.io/meridian/faq/) | Why there's no database, whether it's safe to point at a calendar you use. |
-| [Design](https://islerfab.github.io/meridian/design/) | What each part of the engine guarantees, and what it refuses to do. |
+| [Get started](https://meridian.islerfab.io/get-started/) | One rule syncing end to end on your laptop, in a few minutes. |
+| [Deploy](https://meridian.islerfab.io/guides/deploy/) | Helm chart, config modes, metrics. |
+| [Reference](https://meridian.islerfab.io/reference/) | Every config field, CLI flag and metric, generated from the source. |
+| [FAQ](https://meridian.islerfab.io/faq/) | Why there's no database, whether it's safe to point at a calendar you use. |
+| [Design](https://meridian.islerfab.io/design/) | What each part of the engine guarantees, and what it refuses to do. |
 
 ## Contributing
 

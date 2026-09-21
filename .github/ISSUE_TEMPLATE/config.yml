@@ -7,10 +7,10 @@ contact_links:
     url: https://github.com/islerfab/meridian/discussions/categories/q-a
     about: Setup trouble, rule behaviour, whether this fits your calendars — anything that isn't a bug report.
   - name: Is this a known limitation?
-    url: https://islerfab.github.io/meridian/limitations/
+    url: https://meridian.islerfab.io/limitations/
     about: One-way sync, hand-edited copies being overwritten and the bounded sync window are all deliberate. Worth a look first.
   - name: Why is it built this way?
-    url: https://islerfab.github.io/meridian/faq/
+    url: https://meridian.islerfab.io/faq/
     about: No database, polling rather than webhooks, CEL instead of code — the reasoning is written down.
   - name: Report a security vulnerability
     url: https://github.com/islerfab/meridian/security/advisories/new
