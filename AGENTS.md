@@ -38,11 +38,42 @@ The summary; `design.md` has the full versions and the reasoning.
 
 `go tool task release` is `git tag "$(go tool svu next)"` plus a push of that one tag. Running the Release workflow from the Actions tab does the same on the runner, for when you aren't at a machine with the repo checked out; GoReleaser itself only ever runs in CI either way. This is svu's real, unmodified commit-type mapping:
 
-- `fix:` → patch, always.
-- `feat:` → minor, always.
 - Breaking (`type!:` or a `BREAKING CHANGE:` footer) → major, always.
+- `feat:` → minor, always.
+- Everything else → patch. That is `always: true` in `.svu.yml`, not svu's default, which bumps for `feat:` and `fix:` only and resolves a docs-or-chore-only range back to the current tag — leaving it impossible to release. It matters because the docs site publishes from tags rather than from `main`, and because Dependabot commits arrive as `chore(deps)`, so a security bump would otherwise have to wait for an unrelated feature or be reworded by hand.
+
+svu offers no way to map individual commit types to bump levels, so `always` is the whole vocabulary: anything that isn't a feature or a break is a patch. The cost is that `always` bumps even when **nothing** has landed, which would tag a second version on an identical tree. Both release paths therefore count commits since the last tag rather than comparing `svu next` to `svu current` — that comparison no longer means anything. Don't restore it.
 
 **There is no longer a guard against a major bump.** The `--v0` cap came off in both the Taskfile and `release.yml` when v1.0.0 shipped, so a breaking marker on a routine change now costs a whole major version. It was added in the first place because an ordinary `feat:` commit once caused an accidental major mid-development; the protection now is commit hygiene rather than a flag.
+
+Since 1.0.0 every change reaches `main` through a pull request closed with a merge commit, the only method the ruleset permits. Squash and rebase are both off, so commits land with their SHAs and signatures intact and **every commit subject** is what svu classifies and GoReleaser groups. The pull request title is not — it reaches only the merge commit body, which the changelog filter drops. `.github/workflows/pr.yml` rejects a commit subject that isn't a Conventional Commit and prints the version the merge would produce, so a breaking footer is visible before the merge rather than after the tag.
+
+Required checks are strict, so a branch has to be current with `main` before it can merge. That is what makes the preview trustworthy: it is computed against the base the merge will actually use, not against whatever `main` looked like when the branch started.
+
+Squash merging is enabled too, as the escape hatch for a contribution whose commits aren't worth preserving. It takes the title as subject and the pull request description as body (`PR_TITLE` / `PR_BODY`), so the *why* a contributor wrote down survives into the commit. Authorship survives as `Co-authored-by`; signatures do not, which is why merge is the default rather than the exception.
+
+The two methods read different text, and inverting them is the sharp edge worth knowing before touching any of this:
+
+| | merge commit | squash |
+| --- | --- | --- |
+| the title becomes | the merge commit **body** | the commit **subject** |
+| the description becomes | nothing | the commit **body** |
+| `feat!: …` in the title | inert | a major bump |
+| `BREAKING CHANGE:` in the title | **a major bump** | inert |
+
+The trap underneath both columns: svu matches a breaking-change marker **anywhere in a body** — not only as a trailing footer, not only at the start of a line. A mid-sentence mention with a colon after it is enough, so ordinary prose explaining that something *isn't* breaking will ship a major release. Only lowercase or a missing colon is safe.
+
+Two mitigations, because neither alone is enough. `pr.yml` rejects a title carrying the marker, since under a merge commit that title becomes the body and `refs/pull/N/merge` gives the preview a generated message rather than the configured one, leaving it blind. And the preview simulates the squash from title *and* description, so a marker buried in prose shows up as a version number before the merge. The tidier fixes are unavailable: the API refuses `MERGE_MESSAGE` with a `BLANK` body, and promoting the title to the merge subject would duplicate every changelog entry and defeat the `^Merge pull request ` filter.
+
+Beyond that, the squash form on GitHub is editable, so the last checkpoint is reading the message before confirming.
+
+`pr.yml` fails only when *neither* method would produce a usable history, and prints the version each open route would produce.
+
+If the per-commit check ever blocks a real contribution that isn't worth a tidy-up round, squash it — that is what the escape hatch is for. If that starts happening often, move the gate to the title and let squash be the default; that is the workflow the Conventional Commits FAQ recommends, and the only reason it isn't the default here is that merge commits keep SHAs and signatures intact.
+
+## Pull requests
+
+`.github/pull_request_template.md` asks for two things, why and testing, and not a summary of the diff. Keep it that way. A template that asks for more gets longer answers, and the reason a change exists is the part nobody can recover from the code a year later.
 
 ## Comments
 
