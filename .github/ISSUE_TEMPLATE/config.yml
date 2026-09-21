@@ -1,5 +1,11 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Suggest a feature or share an idea
+    url: https://github.com/islerfab/meridian/discussions/categories/ideas
+    about: Ideas start as discussions and become issues once accepted, which keeps the issue list to work that is actually planned.
+  - name: Ask a question
+    url: https://github.com/islerfab/meridian/discussions/categories/q-a
+    about: Setup trouble, rule behaviour, whether this fits your calendars — anything that isn't a bug report.
   - name: Is this a known limitation?
     url: https://islerfab.github.io/meridian/limitations/
     about: One-way sync, hand-edited copies being overwritten and the bounded sync window are all deliberate. Worth a look first.

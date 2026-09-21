@@ -1,5 +1,13 @@
 # Contributing
 
+## Reporting a bug or suggesting a feature
+
+- **Something's broken** → [open an issue](https://github.com/islerfab/meridian/issues/new/choose). The template asks for your `rules.yaml` and a few operation log lines. Both are safe to paste: the config holds the *names* of environment variables and never their values, and the logs carry identifiers instead of event content. Worth checking [Limitations](https://islerfab.github.io/meridian/limitations/) first, since one-way sync, overwritten hand edits and the bounded sync window are all on purpose.
+- **You have an idea** → [start a discussion under Ideas](https://github.com/islerfab/meridian/discussions/categories/ideas). Accepted ideas become issues, which keeps the issue list to work that is actually planned.
+- **You're stuck** → [Q&A](https://github.com/islerfab/meridian/discussions/categories/q-a). The [FAQ](https://islerfab.github.io/meridian/faq/) covers why the design is the way it is.
+- **You're running Meridian** → say so in [Show and tell](https://github.com/islerfab/meridian/discussions/categories/show-and-tell). Useful to know who's out there.
+- **You found a vulnerability** → not an issue, please. Use [private reporting](https://github.com/islerfab/meridian/security/advisories/new); [SECURITY.md](SECURITY.md) covers what counts.
+
 ## Building and testing
 
 ```bash
