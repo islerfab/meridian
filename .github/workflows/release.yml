@@ -35,11 +35,15 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
-          next="$(go tool svu next)"
-          if [ "$next" = "$(go tool svu current)" ]; then
-            echo "No fix: or feat: commit since $next — nothing to release." >&2
+          current="$(go tool svu current)"
+          # .svu.yml sets always:true, so `next` differs from `current` even
+          # when nothing has landed. Count commits instead, or this tags a
+          # second version on an identical tree.
+          if [ -z "$(git log "$current"..HEAD --oneline)" ]; then
+            echo "No commits since $current — nothing to release." >&2
             exit 1
           fi
+          next="$(go tool svu next)"
           git tag "$next"
           git push origin "$next"
           echo "Tagged $next"

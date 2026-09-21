@@ -1,0 +1,14 @@
+# svu reads this on every invocation, which keeps the version the PR preview
+# prints identical to the one a release actually cuts.
+#
+# always: anything that isn't feat or breaking produces a patch. svu offers no
+# way to map individual commit types to bump levels, and without this a release
+# containing only docs, chore or refactor commits resolves to the current tag
+# and cannot be cut at all. That matters here because the docs site publishes
+# from tags rather than from main, and because a dependency bump arrives as
+# chore(deps) — so a security fix would otherwise wait for an unrelated feature.
+#
+# Releasing stays a deliberate act: `go tool task release` is run by hand, and
+# it refuses when there are no commits since the last tag. Without that guard
+# this setting would happily tag a second version on an identical tree.
+always: true

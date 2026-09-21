@@ -134,5 +134,12 @@ tasks:
       NEXT:
         sh: go tool svu next
     cmds:
+      # .svu.yml sets always:true, so svu bumps the patch even with nothing to
+      # release. Without this it would tag a second version on an identical tree.
+      - |
+        if [ -z "$(git log "$(go tool svu current)"..HEAD --oneline)" ]; then
+          echo "No commits since $(go tool svu current) — nothing to release." >&2
+          exit 1
+        fi
       - git tag "{{.NEXT}}"
       - git push origin "{{.NEXT}}"

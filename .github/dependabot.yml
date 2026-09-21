@@ -14,8 +14,6 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
     commit-message:
-      # svu cuts releases only for fix and feat, so a bump that needs to ship
-      # wants its merge commit reworded to fix(deps).
       prefix: "chore(deps)"
 
   - package-ecosystem: github-actions
