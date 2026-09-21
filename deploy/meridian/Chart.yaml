@@ -29,9 +29,6 @@ annotations:
   # Searched for alongside the bare name, which several unrelated projects
   # also answer to.
   artifacthub.io/alternativeName: meridian-calendar-sync
-  # Drops at v1.0.0, when the rules.yaml schema, the chart values and the CLI
-  # stop changing without notice.
-  artifacthub.io/prerelease: "true"
   # A link named "support" is the one Artifact Hub highlights.
   artifacthub.io/links: |
     - name: Documentation

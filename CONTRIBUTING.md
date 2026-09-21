@@ -35,7 +35,7 @@ This repo uses [Conventional Commits](https://www.conventionalcommits.org/) — 
 
 - `fix:` → patch release.
 - `feat:` → minor release.
-- `feat!:`, `fix!:`, or a `BREAKING CHANGE:` footer → would normally be a major bump, but is capped at minor while the project is pre-1.0 (`go tool task release` passes `--v0`). [AGENTS.md](AGENTS.md#versioning) explains the mapping and what leaving beta actually involves.
+- `feat!:`, `fix!:`, or a `BREAKING CHANGE:` footer → major release. [AGENTS.md](AGENTS.md#versioning) explains the mapping.
 
 A commit that doesn't follow the convention doesn't break anything locally, but it does mean `svu` can't classify it correctly when a release is cut — please use the prefixes above.
 

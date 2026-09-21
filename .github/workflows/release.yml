@@ -35,7 +35,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
-          next="$(go tool svu next --v0)"
+          next="$(go tool svu next)"
           if [ "$next" = "$(go tool svu current)" ]; then
             echo "No fix: or feat: commit since $next — nothing to release." >&2
             exit 1

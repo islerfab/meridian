@@ -36,12 +36,13 @@ The summary; `design.md` has the full versions and the reasoning.
 
 ## Versioning
 
-`go tool task release` is `git tag "$(go tool svu next --v0)"` plus a push of that one tag. Running the Release workflow from the Actions tab does the same on the runner, for when you aren't at a machine with the repo checked out; GoReleaser itself only ever runs in CI either way. This is svu's real, unmodified commit-type mapping — don't invent an alternate pre-1.0 scheme:
+`go tool task release` is `git tag "$(go tool svu next)"` plus a push of that one tag. Running the Release workflow from the Actions tab does the same on the runner, for when you aren't at a machine with the repo checked out; GoReleaser itself only ever runs in CI either way. This is svu's real, unmodified commit-type mapping:
 
 - `fix:` → patch, always.
-- `feat:` → minor, always. The minor digit climbing freely pre-1.0 is normal and expected, not something to fight.
-- Breaking (`type!:` or a `BREAKING CHANGE:` footer) → major, *except* that the Taskfile passes `--v0`, which caps it at a minor bump while the major version is 0. That is the deliberate guard against an accidental `v1.0.0`, added after an ordinary `feat:` commit caused one mid-development.
-- **Leaving beta is `v1.0.0`, a deliberate one-time act.** Remove `--v0` from the Taskfile, then cut a commit marked `feat!:` or carrying a `BREAKING CHANGE:` footer so `svu next` actually crosses the threshold. Until that flag is gone, no accidental commit can push a major bump.
+- `feat:` → minor, always.
+- Breaking (`type!:` or a `BREAKING CHANGE:` footer) → major, always.
+
+**There is no longer a guard against a major bump.** The `--v0` cap came off in both the Taskfile and `release.yml` when v1.0.0 shipped, so a breaking marker on a routine change now costs a whole major version. It was added in the first place because an ordinary `feat:` commit once caused an accidental major mid-development; the protection now is commit hygiene rather than a flag.
 
 ## Comments
 
