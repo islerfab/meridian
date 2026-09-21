@@ -2,7 +2,7 @@ apiVersion: v2
 name: meridian
 description: Declarative one-way calendar sync, Kubernetes-first — stateless snapshot reconciliation between your own calendars. Google Calendar and CalDAV.
 type: application
-home: https://islerfab.github.io/meridian/
+home: https://meridian.islerfab.io/
 icon: https://raw.githubusercontent.com/islerfab/meridian/main/docs/static/images/logo.png
 sources:
   - https://github.com/islerfab/meridian
@@ -32,11 +32,11 @@ annotations:
   # A link named "support" is the one Artifact Hub highlights.
   artifacthub.io/links: |
     - name: Documentation
-      url: https://islerfab.github.io/meridian/
+      url: https://meridian.islerfab.io/
     - name: Get started
-      url: https://islerfab.github.io/meridian/get-started/
+      url: https://meridian.islerfab.io/get-started/
     - name: Deploy guide
-      url: https://islerfab.github.io/meridian/guides/deploy/
+      url: https://meridian.islerfab.io/guides/deploy/
     - name: Releases
       url: https://github.com/islerfab/meridian/releases
     - name: Security policy

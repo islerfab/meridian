@@ -4,8 +4,8 @@ Declarative, one-way calendar sync between your own calendars, running as a
 single stateless pod — a private calendar mirrored into a work calendar as
 anonymous **Busy** blocks, say. Google Calendar and CalDAV, in any combination.
 The [project README](https://github.com/islerfab/meridian) has the wider tour
-and the [documentation](https://islerfab.github.io/meridian/) has everything
-else; this page is about installing the chart.
+and the [documentation](https://meridian.islerfab.io/) has everything else;
+this page is about installing the chart.
 
 What that costs you to run is the part worth knowing up front: no database, no
 PersistentVolumeClaim, no StatefulSet. Each cycle reads the current state of
@@ -32,9 +32,8 @@ Two things have to exist first.
 **A Secret** named by `credentials.existingSecret`, holding the environment
 variables your rules refer to by name (`usernameEnv`, `clientIDEnv`, and
 friends). The chart handles variable *names* only — credential values never
-pass through a values file. The [deploy
-guide](https://islerfab.github.io/meridian/guides/deploy/) covers getting that
-Secret into Git safely with SOPS or Sealed Secrets.
+pass through a values file. The [deploy guide](https://meridian.islerfab.io/guides/deploy/)
+covers getting that Secret into Git safely with SOPS or Sealed Secrets.
 
 **Your rules**, in one of two config modes:
 
@@ -94,8 +93,8 @@ hover docs:
 The pod exposes Prometheus metrics on `listen.port`. Per-rule counters for
 creates, updates, deletes and errors, a timestamp for the last successful
 cycle, and counters for the hardening guards — which fire loudly on purpose.
-[Operate](https://islerfab.github.io/meridian/guides/operate/) covers what's
-worth alerting on and what cleans up after itself.
+[Operate](https://meridian.islerfab.io/guides/operate/) covers what's worth
+alerting on and what cleans up after itself.
 
 ## Verifying what you installed
 
@@ -113,11 +112,11 @@ cosign verify ghcr.io/islerfab/charts/meridian:X.Y.Z \
 
 | | |
 |---|---|
-| [Get started](https://islerfab.github.io/meridian/get-started/) | One rule syncing end to end on your laptop. |
-| [Deploy on Kubernetes](https://islerfab.github.io/meridian/guides/deploy/) | The long version of this page. |
-| [Write sync rules](https://islerfab.github.io/meridian/guides/write-rules/) | Filters, transforms, and the traps worth knowing. |
-| [Configuration reference](https://islerfab.github.io/meridian/reference/configuration/) | Every field, generated from the source. |
-| [Limitations](https://islerfab.github.io/meridian/limitations/) | What it doesn't do, on purpose and otherwise. |
+| [Get started](https://meridian.islerfab.io/get-started/) | One rule syncing end to end on your laptop. |
+| [Deploy on Kubernetes](https://meridian.islerfab.io/guides/deploy/) | The long version of this page. |
+| [Write sync rules](https://meridian.islerfab.io/guides/write-rules/) | Filters, transforms, and the traps worth knowing. |
+| [Configuration reference](https://meridian.islerfab.io/reference/configuration/) | Every field, generated from the source. |
+| [Limitations](https://meridian.islerfab.io/limitations/) | What it doesn't do, on purpose and otherwise. |
 
 Dogfood: Meridian runs unattended on the maintainer's homelab, mirroring real
 calendars around the clock. [MIT licensed](https://github.com/islerfab/meridian/blob/main/LICENSE).
