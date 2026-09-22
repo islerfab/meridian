@@ -62,6 +62,22 @@ a second person to give one.
 - If your change affects `rules.yaml` schema, the CLI, metrics, or deployment, update the corresponding page under `docs/` in the same PR — docs and code should never drift apart.
 - Docs prose has a house style, written down under [Documentation voice](AGENTS.md#documentation-voice). It's four bullets long, and the point of all four is that the documentation should stay pleasant for a human to read.
 
+### Sign your commits
+
+`main` accepts only commits carrying a verified signature. This is worth
+knowing before you open a pull request rather than after, because there is no
+way around it at merge time: unsigned commits block a merge commit, and GitHub
+blocks a squash for the same reason.
+
+Setting it up is a five-minute job you do once, and SSH signing can reuse the
+key you already push with. GitHub's guide to [commit signature
+verification](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification)
+covers both SSH and GPG.
+
+If you've already written the change and would rather not set up signing, say
+so in the pull request. Getting the work in matters more than the route it
+takes.
+
 ### Agents are welcome, authorship isn't delegable
 
 Much of this project was written with a coding agent, so there's no rule here against using one. [AGENTS.md](AGENTS.md) is the working contract, and a change that follows it was built the way the rest of the code was.
