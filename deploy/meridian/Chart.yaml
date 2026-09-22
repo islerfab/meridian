@@ -41,6 +41,8 @@ annotations:
       url: https://github.com/islerfab/meridian/releases
     - name: Security policy
       url: https://github.com/islerfab/meridian/security/policy
+    - name: OpenSSF Best Practices
+      url: https://www.bestpractices.dev/projects/14754
     - name: support
       url: https://github.com/islerfab/meridian/issues
   # APP_VERSION is substituted with the release version before packaging:
