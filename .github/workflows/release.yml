@@ -71,11 +71,35 @@ jobs:
       # Complementary to the cosign signatures above, which say the artifact is
       # unmodified but not where it came from.
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        id: attest-binaries
         with:
           subject-checksums: ./dist/checksums.txt
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        id: attest-image
         with:
           subject-checksums: ./dist/digests.txt
+      # The attestations above live in GitHub's attestation store, which needs
+      # an API call to reach. Attaching them to the release makes provenance
+      # verifiable from the downloaded files alone. Each is a sigstore bundle
+      # wrapping an in-toto statement, one JSON object per line.
+      #
+      # The `.intoto.jsonl` suffix is load-bearing rather than decorative:
+      # Scorecard's Signed-Releases check reads release assets only and matches
+      # provenance by filename suffix, so the attestation store is invisible to
+      # it. Teaching it to read GitHub attestations is open as
+      # ossf/scorecard#4080, #4174 and #4667; these two uploads can go if that
+      # ever ships.
+      - name: Attach the provenance to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          binaries="/tmp/meridian_${VERSION}_provenance.intoto.jsonl"
+          image="/tmp/meridian_${VERSION}_image_provenance.intoto.jsonl"
+          cp -f "${{ steps.attest-binaries.outputs.bundle-path }}" "$binaries"
+          cp -f "${{ steps.attest-image.outputs.bundle-path }}" "$image"
+          gh release upload "$GITHUB_REF_NAME" "$binaries" "$image" --clobber
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
       - name: Publish Helm chart as an OCI artifact
         run: |
