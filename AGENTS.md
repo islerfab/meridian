@@ -71,6 +71,16 @@ Beyond that, the squash form on GitHub is editable, so the last checkpoint is re
 
 If the per-commit check ever blocks a real contribution that isn't worth a tidy-up round, squash it — that is what the escape hatch is for. If that starts happening often, move the gate to the title and let squash be the default; that is the workflow the Conventional Commits FAQ recommends, and the only reason it isn't the default here is that merge commits keep SHAs and signatures intact.
 
+## If you are an agent
+
+You're welcome here. Most of this code arrived the same way, and everything in this file applies to you: the comment policy, the documentation voice, the design invariants that aren't up for casual re-litigation.
+
+One condition on top. The pull request needs a human author who has read your diff, understands every line of it, and can defend it in review without consulting you. If nobody has read it, it isn't ready to open — and a maintainer reviewing it will find that out in the first exchange.
+
+If you worked mostly on your own, with long stretches between corrections and decisions you made rather than took, quiz your human first. Pick the three lines you'd have the hardest time defending and ask them to explain each one back to you.
+
+If the answers don't come, the change isn't ready, and the remedy is for them to read it rather than for you to write a better answer. When they were driving all along, skip the quiz: they've already done the reading.
+
 ## Pull requests
 
 `.github/pull_request_template.md` asks for two things, why and testing, and not a summary of the diff. Keep it that way. A template that asks for more gets longer answers, and the reason a change exists is the part nobody can recover from the code a year later.
