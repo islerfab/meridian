@@ -62,6 +62,14 @@ a second person to give one.
 - If your change affects `rules.yaml` schema, the CLI, metrics, or deployment, update the corresponding page under `docs/` in the same PR — docs and code should never drift apart.
 - Docs prose has a house style, written down under [Documentation voice](AGENTS.md#documentation-voice). It's four bullets long, and the point of all four is that the documentation should stay pleasant for a human to read.
 
+### Agents are welcome, authorship isn't delegable
+
+Much of this project was written with a coding agent, so there's no rule here against using one. [AGENTS.md](AGENTS.md) is the working contract, and a change that follows it was built the way the rest of the code was.
+
+Authorship is the part that doesn't transfer. A pull request needs a human author who understands every line in it and can answer for it: why the change is shaped this way, what it might break, what happens the first time it meets a real calendar. If a review question has to go back through a model before it can be answered, the change isn't ready to open.
+
+A fix for something you hit yourself is nearly always a better contribution than one picked off the issue list because it looked easy. The second kind takes longer to review than it took to write, and it's the kind that gets reverted.
+
 ## License
 
 By contributing, you agree your contributions are licensed under this project's [MIT license](LICENSE).
