@@ -36,7 +36,7 @@ The summary; `design.md` has the full versions and the reasoning.
 
 ## Versioning
 
-`go tool task release` is `git tag "$(go tool svu next)"` plus a push of that one tag. Running the Release workflow from the Actions tab does the same on the runner, for when you aren't at a machine with the repo checked out; GoReleaser itself only ever runs in CI either way. This is svu's real, unmodified commit-type mapping:
+`go tool task release` is `git tag -m "$(go tool svu next)"` plus a push of that one tag. The message is what makes the tag annotated, which a signed tag has to be; without it a maintainer who signs tags gets an editor rather than a release. Running the Release workflow from the Actions tab does the same on the runner, minus the signature, for when you aren't at a machine with the repo checked out; GoReleaser itself only ever runs in CI either way. This is svu's real, unmodified commit-type mapping:
 
 - Breaking (`type!:` or a `BREAKING CHANGE:` footer) → major, always.
 - `feat:` → minor, always.

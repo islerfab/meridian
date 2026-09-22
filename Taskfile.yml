@@ -141,5 +141,8 @@ tasks:
           echo "No commits since $(go tool svu current) — nothing to release." >&2
           exit 1
         fi
-      - git tag "{{.NEXT}}"
+      # Annotated rather than lightweight, and the -m is not optional: a signed
+      # tag has to be annotated, so a bare `git tag` under tag.gpgSign stops to
+      # open an editor instead of tagging.
+      - git tag -m "{{.NEXT}}" "{{.NEXT}}"
       - git push origin "{{.NEXT}}"

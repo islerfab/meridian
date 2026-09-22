@@ -44,7 +44,10 @@ jobs:
             exit 1
           fi
           next="$(go tool svu next)"
-          git tag "$next"
+          # Annotated, to match the tags `task release` cuts. Unsigned either
+          # way: the runner has no key, so a tag cut from the Actions tab
+          # carries no signature even when local tags do.
+          git tag -m "$next" "$next"
           git push origin "$next"
           echo "Tagged $next"
 
