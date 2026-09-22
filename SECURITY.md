@@ -92,6 +92,28 @@ Note where the `v` goes: the git tag and the GitHub release are `vX.Y.Z`, while
 both registry tags are plain `X.Y.Z`. Only the certificate identity keeps the
 prefix, because it points at the git ref the build ran from.
 
+### Provenance
+
+A signature says an artifact is unmodified. Provenance says where it came from:
+which source commit, which workflow, which runner. Every release carries build
+provenance as two attached files, `meridian_X.Y.Z_provenance.intoto.jsonl` for
+the binaries and archives, and `meridian_X.Y.Z_image_provenance.intoto.jsonl`
+for the container image.
+
+Each is a sigstore bundle wrapping an in-toto statement. Download one next to
+the artifact it describes and verify the pair offline:
+
+```bash
+gh attestation verify meridian_X.Y.Z_linux_arm64.tar.gz \
+  --bundle meridian_X.Y.Z_provenance.intoto.jsonl \
+  --repo islerfab/meridian
+```
+
+The same attestations are in GitHub's attestation store, so dropping `--bundle`
+verifies against the API instead. The file exists for the case where reaching
+the API isn't an option, or where the download is being checked long after the
+fact.
+
 `go tool task vuln` runs [govulncheck](https://go.dev/blog/govulncheck) against
 the module. CI runs it on every push, and a scheduled job runs it weekly so a
 quiet month doesn't mean an unnoticed advisory. It's call-graph aware, so it
