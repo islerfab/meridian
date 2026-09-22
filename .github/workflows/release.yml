@@ -1,9 +1,11 @@
 name: Release
 
+# A pushed tag is the only way in. There was a workflow_dispatch path that cut
+# its own tag on the runner, and it went when tags started being signed: the
+# runner has no key, so that path could only ever produce an unsigned tag.
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
 
 # Read-only by default; the release job widens it for itself. A workflow-level
 # write grant would apply to every job any future edit adds here.
@@ -27,30 +29,6 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      # Dispatched runs cut their own tag and then carry on into the release
-      # below. They cannot hand off to the push trigger above: a tag pushed
-      # with GITHUB_TOKEN deliberately does not start another workflow, and the
-      # way around that is a long-lived admin PAT in the secrets.
-      - name: Cut the tag
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          set -euo pipefail
-          current="$(go tool svu current)"
-          # .svu.yml sets always:true, so `next` differs from `current` even
-          # when nothing has landed. Count commits instead, or this tags a
-          # second version on an identical tree.
-          if [ -z "$(git log "$current"..HEAD --oneline)" ]; then
-            echo "No commits since $current — nothing to release." >&2
-            exit 1
-          fi
-          next="$(go tool svu next)"
-          # Annotated, to match the tags `task release` cuts. Unsigned either
-          # way: the runner has no key, so a tag cut from the Actions tab
-          # carries no signature even when local tags do.
-          git tag -m "$next" "$next"
-          git push origin "$next"
-          echo "Tagged $next"
-
       # No cosign-release input on purpose. The installer bakes in a bootstrap
       # cosign version and its SHA256 per platform; asking for that exact
       # version is the one path that verifies against the digest and stops.
