@@ -3,13 +3,10 @@ package adapter
 import "errors"
 
 // Normalized error taxonomy. Adapters wrap every provider error with
-// exactly one of these sentinels (errors.Is-able); the engine acts on the
-// class, never on provider-specific errors:
-//
-//	ErrNotFound    → treat as deleted (idempotent deletes, tombstones)
-//	ErrRateLimited → back off, resume next cycle
-//	ErrAuthFailed  → fatal, alert loudly (needs a human)
-//	ErrTransient   → skip this rule's cycle; the next cycle is the retry
+// exactly one of these sentinels (errors.Is-able). Only ErrNotFound changes
+// engine behaviour: an already-gone delete or update target is not a
+// failure. The others differ only in the error metrics' class label; any
+// failure is retried by the next cycle, and nothing backs off.
 var (
 	ErrNotFound    = errors.New("not found")
 	ErrRateLimited = errors.New("rate limited")

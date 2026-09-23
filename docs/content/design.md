@@ -115,12 +115,13 @@ type CalendarAdapter interface {
 
 ### Error taxonomy
 
-Adapters normalize every provider error into one of four classes the engine acts on uniformly:
+Adapters normalize every provider error into one of four classes: `NotFound` (which covers `Gone`), `RateLimited`, `AuthFailed` and `Transient`. The engine never looks at a provider's own error.
 
-- `NotFound` / `Gone` — treat as already deleted.
-- `RateLimited` — end this rule's cycle; the next scheduled one retries.
-- `AuthFailed` — fatal, alert loudly.
-- `Transient` — skip this cycle, and feed the mass-delete guard, since from inside a naive check a transient failure looks exactly like an empty source.
+**Only `NotFound` changes what happens.** A delete that finds nothing has succeeded. An update whose target has vanished is dropped, and the next cycle recreates the copy if it's still wanted.
+
+**The other three share one path.** A failed source fetch aborts the rule's cycle, a failed destination listing skips that destination, and a failed write is counted while the remaining writes go ahead. The next cycle is the retry, rate limits included. What the class does decide is the `class` label on `meridian_fetch_errors_total` and `meridian_op_errors_total`, so an alert can tell a revoked token from a flaky network.
+
+`AuthFailed` carries the most weight at startup, where the readiness probe keeps the pod unready until every calendar's credentials verify. After readiness latches, a broken token surfaces through that label and the staleness alert instead.
 
 ## Recurrence and time
 
