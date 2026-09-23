@@ -173,8 +173,8 @@ func (f compiledFilter) match(ev model.Event) bool {
 	return true
 }
 
-// maxRegionDays bounds the day walk (the sync window is ~91 days; anything
-// longer cannot be a real fetched event).
+// maxRegionDays bounds the day walk; it is far longer than any sync window,
+// so it only ever stops a malformed event.
 const maxRegionDays = 400
 
 // overlapsRegion implements the weekly-region semantics:

@@ -49,8 +49,8 @@ func NewAccount(ctx context.Context, cfg AccountConfig, log *slog.Logger) (*Acco
 
 // Discover lists the account's calendar list and returns a shadow-capable
 // adapter per writable calendar (ProviderID = Google calendar ID).
-// Read-only calendars (subscriptions, holidays) cannot hold our shadows'
-// deletions and are skipped.
+// Read-only calendars (subscriptions, holidays) cannot hold shadows, so
+// there is nothing on them to sweep.
 func (a *Account) Discover(ctx context.Context) ([]adapter.DiscoveredCalendar, error) {
 	var out []adapter.DiscoveredCalendar
 	err := a.svc.CalendarList.List().Pages(ctx, func(page *calendar.CalendarList) error {

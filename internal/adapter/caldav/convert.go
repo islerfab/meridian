@@ -23,8 +23,8 @@ const propClass = "CLASS"
 
 // eventFromComponent normalizes one (expanded) VEVENT into the model.
 // Server-expanded instances arrive with UTC DATE-TIME values and a
-// RECURRENCE-ID on every instance (verified against sabre/dav 4.3.1);
-// all-day events stay DATE-valued.
+// RECURRENCE-ID on every instance, as sabre/dav returns them; all-day
+// events stay DATE-valued.
 func eventFromComponent(comp *ical.Component, calendarID string, identities []string) (model.Event, error) {
 	var ev model.Event
 

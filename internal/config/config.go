@@ -1,8 +1,3 @@
-// Package config loads and validates rules.yaml and compiles it into engine
-// inputs: sync.Rule closures, adapters, notifier. Strict parsing — unknown
-// fields are errors; CEL and templates compile and type-check at load;
-// every failure is a startup error. Secrets never appear in the file:
-// fields reference environment variable NAMES.
 package config
 
 import (
@@ -29,8 +24,8 @@ type Config struct {
 	// ownership marker it writes. Must be unique across any instances
 	// sharing a destination, and stable for the instance's lifetime —
 	// changing it orphans every shadow the instance previously wrote (they
-	// become invisible to it; `meridian wipe --instance <old>` cleans them
-	// up).
+	// become invisible to it; `meridian wipe calendar <calendar> --instance
+	// <old>` cleans them up).
 	Instance string `yaml:"instance" doc:"required"`
 	// Interval is the time between reconciliation cycles.
 	Interval string `yaml:"interval" doc:"optional,default=5m"`

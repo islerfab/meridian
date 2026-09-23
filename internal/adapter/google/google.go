@@ -1,8 +1,8 @@
 // Package google implements the CalendarAdapter contract against the Google
 // Calendar API v3. Recurrence expansion is server-side via
 // events.list(singleEvents=true); shadow listing uses the server-side
-// privateExtendedProperty query on the marker version key, which CalDAV has
-// no equivalent for.
+// privateExtendedProperty query on the marker's instance key, which CalDAV
+// has no equivalent for.
 package google
 
 import (
@@ -84,18 +84,11 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*Adapter, error) {
 
 // ListEvents fetches server-expanded instances overlapping the window.
 // Cancelled events (tombstones) are skipped, never a cycle failure. So are
-// eventType=="birthday" items: Google auto-injects contacts' birthdays
-// directly into the primary calendar's events feed, and they are never
-// something a sync rule should mirror by default.
-//
-// To sync birthdays explicitly instead, configure a calendar with
-// id: addressbook#contacts@group.v.calendar.google.com — the dedicated
-// Birthdays calendar. It's a real, directly addressable calendar resource,
-// but it never appears in
-// CalendarList (not even with showHidden), so the account-wide sweep's
-// Discover() can never auto-target it — a rule must name it explicitly.
-// Events fetched from it carry eventType=="default", not "birthday", so
-// this skip never excludes them there.
+// eventType=="birthday" items, which Google injects into the primary
+// calendar's feed from contacts. A rule that wants birthdays names the
+// Birthdays calendar (addressbook#contacts@group.v.calendar.google.com)
+// directly: CalendarList never returns it, and its events carry
+// eventType=="default", so this skip doesn't apply there.
 func (a *Adapter) ListEvents(ctx context.Context, window adapter.Window) ([]model.Event, error) {
 	var events []model.Event
 	call := a.svc.Events.List(a.cfg.GoogleCalendarID).
@@ -123,8 +116,8 @@ func (a *Adapter) ListEvents(ctx context.Context, window adapter.Window) ([]mode
 	return events, nil
 }
 
-// ListShadows uses the server-side marker query: only events carrying
-// meridian.v=1 in extendedProperties.private come back at all.
+// ListShadows uses the server-side marker query: only events whose
+// extendedProperties.private carry this instance's ID come back at all.
 func (a *Adapter) ListShadows(ctx context.Context, window adapter.Window) ([]model.Shadow, error) {
 	var shadows []model.Shadow
 	call := a.svc.Events.List(a.cfg.GoogleCalendarID).

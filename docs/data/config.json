@@ -6,7 +6,7 @@
       "fields": [
         {
           "name": "instance",
-          "doc": "This Meridian instance's identity, embedded in every\nownership marker it writes. Must be unique across any instances\nsharing a destination, and stable for the instance's lifetime —\nchanging it orphans every shadow the instance previously wrote (they\nbecome invisible to it; `meridian wipe --instance \u003cold\u003e` cleans them\nup).",
+          "doc": "This Meridian instance's identity, embedded in every\nownership marker it writes. Must be unique across any instances\nsharing a destination, and stable for the instance's lifetime —\nchanging it orphans every shadow the instance previously wrote (they\nbecome invisible to it; `meridian wipe calendar \u003ccalendar\u003e --instance\n\u003cold\u003e` cleans them up).",
           "required": true
         },
         {

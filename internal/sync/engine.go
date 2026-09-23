@@ -1,8 +1,3 @@
-// Package sync is the reconciliation engine: stateless snapshot
-// reconciliation, level-triggered like a k8s controller. Every cycle
-// re-derives the desired shadow set from sources + rules and converges each
-// destination onto it. The calendars are the state; there is no persistence
-// of any kind.
 package sync
 
 import (
@@ -345,9 +340,9 @@ func (e *Engine) reconcileRule(ctx context.Context, rule Rule, window adapter.Wi
 }
 
 // executeOps applies planned ops. Per-op failures are logged and counted,
-// never fatal to other ops — with one tombstone nicety: NotFound
-// on update/delete means the shadow is already gone; the next cycle
-// recreates it if still desired.
+// never fatal to other ops. NotFound on an update is tolerated: the shadow is
+// already gone and the next cycle recreates it if still desired. Deletes need
+// no such case, since adapters already report a 404/410 delete as success.
 func (e *Engine) executeOps(ctx context.Context, rule, dest string, ops []Op, log *slog.Logger) bool {
 	ad := e.cfg.Adapters[dest]
 	ok := true
@@ -374,7 +369,8 @@ func (e *Engine) executeOps(ctx context.Context, rule, dest string, ops []Op, lo
 			continue
 		}
 		e.cfg.Metrics.OpsTotal.WithLabelValues(rule, string(op.Kind)).Inc()
-		// The structured op record: forensic + validation.
+		// With no database, this record is the audit trail; its fields are
+		// documented in docs/content/reference/metrics.md.
 		log.Info("op",
 			"op", string(op.Kind), "dest", dest,
 			"src", op.Shadow.Marker.Src.String(),

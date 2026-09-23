@@ -65,6 +65,8 @@ MERIDIAN_GOOGLE_REFRESH_TOKEN="..."   # written by the command above
 {{< tab name="CalDAV" >}}
 You need your CalDAV endpoint, your username, and a password. If your provider requires 2FA, generate an app-specific password rather than using your account password.
 
+The username is whatever your provider uses for CalDAV logins, which isn't always your email address. Infomaniak, for one, issues a short sync username (something like `AB12345`), shown under manual synchronization at config.infomaniak.com. Logging in with the email finds no calendars.
+
 ```bash {filename=".env"}
 MERIDIAN_CALDAV_USERNAME="you@example.com"
 MERIDIAN_CALDAV_PASSWORD="app-specific-password"
