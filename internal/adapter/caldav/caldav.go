@@ -29,12 +29,12 @@ import (
 type Config struct {
 	// Endpoint is the server base URL, e.g. https://sync.infomaniak.com.
 	Endpoint string
-	// Username is the CalDAV login. Infomaniak: the internal account ID
-	// (USERxxxxx), NOT the email — email auth appears to succeed but
-	// principal lookups 404 (see design.md).
+	// Username is the CalDAV login, which is not always the email address:
+	// Infomaniak issues a short sync username (e.g. AB12345) and finds no
+	// calendars for an email login.
 	Username string
 	Password string
-	// CalendarPath is the collection path, e.g. /calendars/USERxxxxx/<uuid>/.
+	// CalendarPath is the collection path, e.g. /calendars/AB12345/<uuid>/.
 	CalendarPath string
 	// CalendarID is the logical calendar reference used in EventRef.Calendar
 	// and ShadowRef.Calendar (the config-file name, e.g. "private/main").
