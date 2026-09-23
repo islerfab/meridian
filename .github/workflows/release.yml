@@ -91,7 +91,17 @@ jobs:
           # and Artifact Hub scans the image tag named in this one.
           sed -i "s|ghcr.io/islerfab/meridian:APP_VERSION|ghcr.io/islerfab/meridian:$VERSION|" deploy/meridian/Chart.yaml
           helm package deploy/meridian --version "$VERSION" --app-version "$VERSION" --destination /tmp/chart-out
-          helm push "/tmp/chart-out/meridian-$VERSION.tgz" oci://ghcr.io/islerfab/charts 2>&1 | tee /tmp/chart-push.log
+          # GHCR can answer "not found" when tagging a manifest it accepted a
+          # moment earlier. Re-pushing the same chart is harmless.
+          for attempt in 1 2 3 4 5; do
+            if helm push "/tmp/chart-out/meridian-$VERSION.tgz" oci://ghcr.io/islerfab/charts 2>&1 | tee /tmp/chart-push.log; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
           echo "CHART_DIGEST=$(awk '/^Digest: /{print $2}' /tmp/chart-push.log)" >> "$GITHUB_ENV"
 
       # By digest, for the same reason the image is: a tag can be moved later,
