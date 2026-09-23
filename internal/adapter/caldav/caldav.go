@@ -1,8 +1,8 @@
 // Package caldav implements the CalendarAdapter contract against CalDAV
-// servers (Infomaniak/sabre-dav is the reference deployment) via go-webdav
-// v0.7.0. Recurrence expansion is server-side through the calendar-query
-// REPORT with <expand>, gate-verified against sabre/dav 4.3.1. Shadow
-// listing fetches the window and filters X-MERIDIAN-* markers client-side.
+// servers via go-webdav, with sabre/dav (Infomaniak) as the reference
+// server. Recurrence expansion is server-side through the calendar-query
+// REPORT with <expand>. Shadow listing fetches the window and filters
+// X-MERIDIAN-* markers client-side.
 package caldav
 
 import (
