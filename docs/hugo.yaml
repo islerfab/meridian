@@ -21,7 +21,9 @@ module:
     # hugo that happens to work. Nobody builds this site outside this repo,
     # and every entrypoint here goes through the pinned `go run`, so the only
     # way to be below this is to run some other hugo by hand — in which case
-    # a clear version error beats a subtly different render.
+    # a clear version error beats a subtly different render. Renovate moves
+    # both in the same PR.
+    # renovate: datasource=github-releases depName=gohugoio/hugo extractVersion=^v(?<version>.+)$
     min: "0.166.0"
   imports:
     - path: github.com/imfing/hextra

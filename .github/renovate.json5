@@ -8,9 +8,14 @@
   semanticCommits: "enabled",
   platformCommit: "enabled",
 
-  postUpdateOptions: ["gomodTidy"],
-
   packageRules: [
+    // Root module only: docs/go.mod is a Hugo module with no Go code, so tidy
+    // would see the theme as unused and delete it.
+    {
+      matchManagers: ["gomod"],
+      matchFileNames: ["go.mod"],
+      postUpdateOptions: ["gomodTidy"],
+    },
     // Restricting the group to minors and patches is what makes majors arrive
     // one per PR, to be read rather than skimmed.
     {
@@ -26,6 +31,16 @@
     },
     {
       matchManagers: ["custom.regex"],
+      groupName: "build tools",
+    },
+    // The docs theme is the docs module's only requirement, and Hugo modules
+    // mark it indirect because nothing imports it, which Renovate skips by
+    // default. It travels with Hugo because a theme release can raise the
+    // Hugo it needs.
+    {
+      matchFileNames: ["docs/go.mod"],
+      matchDepTypes: ["indirect"],
+      enabled: true,
       groupName: "build tools",
     },
     // Renovate leaves the go directive alone by default. Raising it is how a
@@ -48,6 +63,8 @@
   customManagers: [
     // A pin Renovate wouldn't otherwise see carries an annotation on the line
     // above it:  # renovate: datasource=<datasource> depName=<name>
+    // plus extractVersion=<regex> where the file wants the version without
+    // the tag's leading v.
     // An action's `with: version:` needs none; the github-actions manager
     // reads those itself, and an annotation there would extract it twice.
     {
@@ -55,9 +72,10 @@
       managerFilePatterns: [
         "/^Taskfile\\.yml$/",
         "/^\\.github/workflows/.+\\.ya?ml$/",
+        "/^docs/hugo\\.yaml$/",
       ],
       matchStrings: [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n[^\\n]*?(?:version: |@)(?<currentValue>v\\d[^\\s\"]*)",
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n[^\\n]*?(?:version: |min: \"|@)(?<currentValue>v?\\d[^\\s\"]*)",
       ],
     },
     {
