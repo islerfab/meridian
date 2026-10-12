@@ -1,8 +1,9 @@
 name: Security
 
 # Not redundant with CI, which only fires on push and so catches nothing
-# during a quiet month. The case that matters is a stdlib advisory, where the
-# fix is a Go toolchain bump — something no dependency bot does.
+# during a quiet month. The case that matters is a stdlib advisory: Renovate
+# raises the go directive on its weekly schedule, and this is what notices
+# when an advisory makes that bump urgent.
 on:
   schedule:
     - cron: "17 6 * * 1"

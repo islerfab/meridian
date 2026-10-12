@@ -124,6 +124,7 @@ jobs:
           # The layer is named by the file, so it is pushed from its own directory.
           mkdir -p /tmp/artifacthub && cp -f deploy/artifacthub-repo.yml /tmp/artifacthub/
           cd /tmp/artifacthub
+          # renovate: datasource=go depName=oras.land/oras
           go run oras.land/oras/cmd/oras@v1.3.4 push \
             ghcr.io/islerfab/charts/meridian:artifacthub.io \
             --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml \
