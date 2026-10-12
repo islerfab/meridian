@@ -7,8 +7,29 @@
   // main requires signed commits: platform commits are signed by GitHub.
   semanticCommits: "enabled",
   platformCommit: "enabled",
+  // The ruleset allows squash too, but only a merge commit keeps the signed
+  // commits intact.
+  automergeStrategy: "merge-commit",
+
+  // A version is proposed only once it is three days old, so a compromised
+  // release has time to be noticed and pulled first. Fixes raised from
+  // vulnerability alerts skip the wait.
+  minimumReleaseAge: "3 days",
 
   packageRules: [
+    // cgr.dev publishes no release timestamps and `latest` has no version to
+    // age against, so the hold would keep the digest where it is for good.
+    {
+      matchDepNames: ["cgr.dev/chainguard/static"],
+      minimumReleaseAge: null,
+    },
+    // Go releases are where stdlib security fixes arrive, and vulnerability
+    // alerts don't cover the go directive, so the hold would only delay them.
+    {
+      matchDepNames: ["go"],
+      matchDepTypes: ["golang"],
+      minimumReleaseAge: null,
+    },
     // Root module only: docs/go.mod is a Hugo module with no Go code, so tidy
     // would see the theme as unused and delete it.
     {
@@ -22,6 +43,16 @@
       matchManagers: ["gomod"],
       matchUpdateTypes: ["minor", "patch", "digest"],
       groupName: "go modules",
+    },
+    // The tool block. Renovate sees those modules as indirect requirements,
+    // and every other indirect one stays disabled, so this matches exactly
+    // the tools, including any added later.
+    {
+      matchManagers: ["gomod"],
+      matchFileNames: ["go.mod"],
+      matchDepTypes: ["indirect"],
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      groupName: "go tools",
     },
     // Unlike the module group, this one takes majors: an action major is
     // near-always a Node bump.
@@ -57,6 +88,48 @@
     {
       matchDepNames: ["go", "golangci/golangci-lint"],
       groupName: "go toolchain",
+    },
+
+    // Automerge covers only what a pull request's checks run in full. A
+    // failing check leaves the PR open, and nothing ships without a signed
+    // tag. Everything else stays manual: runtime modules because the tests
+    // use fakes rather than real calendar servers, the docs theme because it
+    // needs looking at, and anything that only release.yml or a schedule runs
+    // because it would first fail in the middle of a release. A PR merges
+    // only when every update in it qualifies.
+    {
+      matchManagers: ["gomod"],
+      matchFileNames: ["go.mod"],
+      matchDepTypes: ["indirect"],
+      matchUpdateTypes: ["minor", "patch"],
+      automerge: true,
+    },
+    // Go patch releases are where stdlib security fixes come from.
+    {
+      matchDepNames: ["go"],
+      matchUpdateTypes: ["patch"],
+      automerge: true,
+    },
+    {
+      matchDepNames: ["golangci/golangci-lint"],
+      matchUpdateTypes: ["minor", "patch"],
+      automerge: true,
+    },
+    // An allowlist of the actions ci.yml and codeql.yml run, so a newly added
+    // action starts out manual. Digest updates stay manual: a new commit
+    // under an unchanged version means the tag was moved, which is how a
+    // hijacked action spreads, and the release-age hold can't see it because
+    // it ages against the tag's original commit date.
+    {
+      matchManagers: ["github-actions"],
+      matchDepNames: [
+        "actions/checkout",
+        "actions/setup-go",
+        "golangci/golangci-lint-action",
+        "github/codeql-action",
+      ],
+      matchUpdateTypes: ["minor", "patch"],
+      automerge: true,
     },
   ],
 
