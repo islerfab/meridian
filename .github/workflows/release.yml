@@ -29,6 +29,10 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+          # The snapshot job in ci.yml builds the same thing on main.
+          cache-dependency-path: |
+            go.sum
+            .goreleaser.yaml
       # No cosign-release input on purpose. The installer bakes in a bootstrap
       # cosign version and its SHA256 per platform; asking for that exact
       # version is the one path that verifies against the digest and stops.

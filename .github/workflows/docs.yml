@@ -28,6 +28,10 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+          # The ci job's key, which already holds the compiled Hugo.
+          cache-dependency-path: |
+            go.sum
+            Taskfile.yml
       - name: Build the site
         env:
           # Dispatched from a branch there's no release to name, so the footer
