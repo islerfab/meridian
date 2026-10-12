@@ -28,5 +28,34 @@ jobs:
           # Install only: the Taskfile runs the linter, so CI and a local
           # `task ci` stay the same command rather than drifting apart.
           install-only: true
+      # The Helm that packages the chart at release time, rather than whichever
+      # one the runner image happens to ship. Renovate moves both pins together.
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.0
       - name: vet, lint, test, build
         run: go tool task ci
+
+  # What a release builds, without publishing or signing: both architectures,
+  # the archives, and the ko images on the pinned base. Otherwise the release
+  # tooling only ever ran on a tag, and a GoReleaser, ko or base image update
+  # would first fail in the middle of a release. A job of its own so it runs
+  # beside the tests rather than after them.
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The snapshot version is derived from the latest tag.
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: v2.18.3
+          # A snapshot publishes nothing: ko loads the images into the runner's
+          # Docker daemon instead of pushing them. Signing is skipped because it
+          # needs the OIDC token only the release job is granted.
+          args: release --snapshot --clean --skip=sign
