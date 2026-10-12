@@ -44,7 +44,9 @@ jobs:
       - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
-          version: "~> v2"
+          # Pinned because GoReleaser only ever runs on a tag: a range would
+          # meet a new version for the first time in the middle of a release.
+          version: v2.18.3
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,6 +84,9 @@ jobs:
           cp -f "${{ steps.attest-image.outputs.bundle-path }}" "$image"
           gh release upload "$GITHUB_REF_NAME" "$binaries" "$image" --clobber
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          # The action defaults to whatever Helm is newest, majors included.
+          version: v4.3.0
       - name: Publish Helm chart as an OCI artifact
         run: |
           set -euo pipefail
