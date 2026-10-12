@@ -17,13 +17,14 @@ jobs:
         with:
           go-version-file: go.mod
       # Installed through the action rather than curl-piped-to-shell, which is
-      # unpinnable by nature. The version must be built with a Go at least as
-      # new as go.mod's language version or golangci-lint refuses to load the
-      # config, so raising the go directive means revisiting this line.
+      # unpinnable by nature. The version has to understand the Go that
+      # setup-go installs: too old and it refuses the config or fails to read
+      # the stdlib's export data, which a patch release can change. Raising
+      # the go directive, even by a patch, means revisiting this line.
       - name: Install golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: v2.13.2
+          version: v2.14.0
           # Install only: the Taskfile runs the linter, so CI and a local
           # `task ci` stay the same command rather than drifting apart.
           install-only: true
