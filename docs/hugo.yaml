@@ -24,7 +24,7 @@ module:
     # a clear version error beats a subtly different render. Renovate moves
     # both in the same PR.
     # renovate: datasource=github-releases depName=gohugoio/hugo extractVersion=^v(?<version>.+)$
-    min: "0.166.0"
+    min: "0.167.0"
   imports:
     - path: github.com/imfing/hextra
 
