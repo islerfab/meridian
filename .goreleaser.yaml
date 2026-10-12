@@ -96,12 +96,19 @@ changelog:
     - title: Bug fixes
       regexp: '^fix(\(.*\))?!?:'
       order: 1
+    # Listed because some of them are automerged, so the release notes are
+    # where they get seen at all.
+    - title: Dependencies
+      regexp: '^chore\(deps\):'
+      order: 2
     - title: Other
       order: 999
   filters:
     exclude:
-      - '^chore\(deps\):'
       - '^Merge pull request '
+      # Renovate's automerge hands the merge to GitHub, which titles the merge
+      # commit after the pull request, so each update would be listed twice.
+      - '^chore\(deps\):.* \(#\d+\)$'
 
 snapshot:
   version_template: "{{ incpatch .Version }}-snapshot-{{ .ShortCommit }}"
