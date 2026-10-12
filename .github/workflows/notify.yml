@@ -1,0 +1,91 @@
+name: Notify
+
+# A workflow rather than a repository webhook pointed at Discord's /github
+# endpoint: a webhook can only choose event types, not who triggered them, so
+# every Renovate PR and every push of the maintainer's own would post too.
+on:
+  issues:
+    types: [opened, reopened]
+  issue_comment:
+    types: [created]
+  # pull_request_target rather than pull_request, because a fork's
+  # pull_request run gets no secrets. Safe only while nothing here checks out
+  # or runs code from the pull request: the job reads the event payload and
+  # nothing else.
+  pull_request_target:
+    types: [opened, reopened]
+  discussion:
+    types: [created]
+  discussion_comment:
+    types: [created]
+  release:
+    types: [published]
+  watch:
+    types: [started]
+  fork:
+
+permissions: {}
+
+jobs:
+  discord:
+    # Releases come from the maintainer, so they are the one event that posts
+    # whoever caused it.
+    if: >-
+      github.event_name == 'release' ||
+      (github.event.sender.type != 'Bot' &&
+       github.event.sender.login != github.repository_owner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Post to Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        # Titles and bodies are written by strangers, so they never pass
+        # through ${{ }} into the script: jq reads them from the event file
+        # and builds the JSON. allowed_mentions stops an @everyone in a title
+        # from pinging the server.
+        run: |
+          set -euo pipefail
+          if [ -z "$WEBHOOK" ]; then
+            echo "::notice::DISCORD_WEBHOOK_URL is not set, so nothing was posted."
+            exit 0
+          fi
+          jq --arg event "$GITHUB_EVENT_NAME" '
+            def cut($n): (. // "") | if length > $n then .[:$n] + "…" else . end;
+            .sender as $s
+            | (if $event == "issues" then
+                 {title: "Issue #\(.issue.number) \(.action): \(.issue.title)",
+                  url: .issue.html_url, text: .issue.body}
+               elif $event == "issue_comment" then
+                 {title: "Comment on \(if .issue.pull_request then "PR" else "issue" end) #\(.issue.number): \(.issue.title)",
+                  url: .comment.html_url, text: .comment.body}
+               elif $event == "pull_request_target" then
+                 {title: "PR #\(.pull_request.number) \(.action): \(.pull_request.title)",
+                  url: .pull_request.html_url, text: .pull_request.body}
+               elif $event == "discussion" then
+                 {title: "Discussion #\(.discussion.number): \(.discussion.title)",
+                  url: .discussion.html_url, text: .discussion.body}
+               elif $event == "discussion_comment" then
+                 {title: "Comment on discussion #\(.discussion.number): \(.discussion.title)",
+                  url: .comment.html_url, text: .comment.body}
+               elif $event == "release" then
+                 {title: "Released \(.release.name // .release.tag_name)",
+                  url: .release.html_url, text: .release.body}
+               elif $event == "watch" then
+                 {title: "Starred, now at \(.repository.stargazers_count)",
+                  url: $s.html_url, text: ""}
+               elif $event == "fork" then
+                 {title: "Forked to \(.forkee.full_name)",
+                  url: .forkee.html_url, text: ""}
+               else error("no message for \($event)") end) as $m
+            | {
+                username: .repository.name,
+                allowed_mentions: {parse: []},
+                embeds: [{
+                  title: ($m.title | cut(250)),
+                  url: $m.url,
+                  description: ($m.text | cut(500)),
+                  author: {name: $s.login, url: $s.html_url, icon_url: $s.avatar_url}
+                }]
+              }' "$GITHUB_EVENT_PATH" > payload.json
+          curl -fsS --retry 3 -H "Content-Type: application/json" --data @payload.json "$WEBHOOK"
