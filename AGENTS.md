@@ -42,7 +42,7 @@ A pushed tag is the only trigger. The Release workflow used to be dispatchable f
 
 - Breaking (`type!:` or a `BREAKING CHANGE:` footer) → major, always.
 - `feat:` → minor, always.
-- Everything else → patch. That is `always: true` in `.svu.yml`, not svu's default, which bumps for `feat:` and `fix:` only and resolves a docs-or-chore-only range back to the current tag — leaving it impossible to release. It matters because the docs site publishes from tags rather than from `main`, and because Dependabot commits arrive as `chore(deps)`, so a security bump would otherwise have to wait for an unrelated feature or be reworded by hand.
+- Everything else → patch. That is `always: true` in `.svu.yml`, not svu's default, which bumps for `feat:` and `fix:` only and resolves a docs-or-chore-only range back to the current tag — leaving it impossible to release. It matters because the docs site publishes from tags rather than from `main`, and because Renovate commits arrive as `chore(deps)`, so a security bump would otherwise have to wait for an unrelated feature or be reworded by hand.
 
 svu offers no way to map individual commit types to bump levels, so `always` is the whole vocabulary: anything that isn't a feature or a break is a patch. The cost is that `always` bumps even when **nothing** has landed, which would tag a second version on an identical tree. Both release paths therefore count commits since the last tag rather than comparing `svu next` to `svu current` — that comparison no longer means anything. Don't restore it.
 

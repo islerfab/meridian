@@ -1,0 +1,73 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended", "schedule:weekly"],
+  timezone: "Europe/Zurich",
+
+  // pr.yml rejects any commit subject that isn't a Conventional Commit, and
+  // main requires signed commits: platform commits are signed by GitHub.
+  semanticCommits: "enabled",
+  platformCommit: "enabled",
+
+  postUpdateOptions: ["gomodTidy"],
+
+  packageRules: [
+    // Restricting the group to minors and patches is what makes majors arrive
+    // one per PR, to be read rather than skimmed.
+    {
+      matchManagers: ["gomod"],
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      groupName: "go modules",
+    },
+    // Unlike the module group, this one takes majors: an action major is
+    // near-always a Node bump.
+    {
+      matchManagers: ["github-actions"],
+      groupName: "github actions",
+    },
+    {
+      matchManagers: ["custom.regex"],
+      groupName: "build tools",
+    },
+    // Renovate leaves the go directive alone by default. Raising it is how a
+    // stdlib security fix reaches the release.
+    {
+      matchManagers: ["gomod"],
+      matchDepTypes: ["golang"],
+      matchDepNames: ["go"],
+      rangeStrategy: "bump",
+    },
+    // golangci-lint has to be able to read the export data of the Go that
+    // setup-go installs, and even a Go patch release can change it. Moving
+    // them in one PR means the lint failure shows up where the cause is.
+    {
+      matchDepNames: ["go", "golangci/golangci-lint"],
+      groupName: "go toolchain",
+    },
+  ],
+
+  customManagers: [
+    // A pin Renovate wouldn't otherwise see carries an annotation on the line
+    // above it:  # renovate: datasource=<datasource> depName=<name>
+    // An action's `with: version:` needs none; the github-actions manager
+    // reads those itself, and an annotation there would extract it twice.
+    {
+      customType: "regex",
+      managerFilePatterns: [
+        "/^Taskfile\\.yml$/",
+        "/^\\.github/workflows/.+\\.ya?ml$/",
+      ],
+      matchStrings: [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n[^\\n]*?(?:version: |@)(?<currentValue>v\\d[^\\s\"]*)",
+      ],
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^\\.goreleaser\\.yaml$/"],
+      matchStrings: [
+        "base_image: (?<depName>[^:@\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]+)",
+      ],
+      datasourceTemplate: "docker",
+      autoReplaceStringTemplate: "base_image: {{depName}}:{{newValue}}@{{newDigest}}",
+    },
+  ],
+}

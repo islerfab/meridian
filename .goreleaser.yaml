@@ -32,7 +32,9 @@ kos:
   - build: meridian
     repositories:
       - ghcr.io/islerfab/meridian
-    base_image: cgr.dev/chainguard/static
+    # Pinned by digest so a release can be rebuilt as it was; Renovate moves
+    # the digest weekly, which is how new tzdata and CA certificates arrive.
+    base_image: cgr.dev/chainguard/static:latest@sha256:fe55470f22d3259488d9d3739168d8f04da67755f0b69382bc26eda4a7d3d327
     platforms:
       - linux/arm64
       - linux/amd64

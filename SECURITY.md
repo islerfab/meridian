@@ -118,7 +118,8 @@ fact.
 the module. CI runs it on every push, and a scheduled job runs it weekly so a
 quiet month doesn't mean an unnoticed advisory. It's call-graph aware, so it
 reports what this code actually reaches rather than everything in the
-dependency tree. Dependency updates come through Dependabot.
+dependency tree. Dependency updates come through Renovate, which also covers
+the Go toolchain, the build tools and the image's base digest.
 
 ### Why the image scan shows one vulnerability
 
