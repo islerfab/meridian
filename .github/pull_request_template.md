@@ -10,8 +10,8 @@
      If the change can't be covered by a test, say what you did instead. -->
 
 <!-- ----------------------------------------------------------------------
-Every commit here lands on `main` exactly as written. Merge commits are the
-only permitted merge method, so nothing gets squashed or rewritten, and your
+Every commit here lands on `main` exactly as written. Pull requests close with
+a merge commit by default, so nothing gets squashed or rewritten, and your
 SHAs and signatures survive. Group the work into whatever commits make sense —
 more than one is fine.
 
