@@ -5,7 +5,7 @@ vars:
   # build should fail and get go.mod raised, not quietly build the docs on a
   # toolchain nothing else uses.
   # renovate: datasource=go depName=github.com/gohugoio/hugo
-  HUGO: go run github.com/gohugoio/hugo@v0.168.0
+  HUGO: go run github.com/gohugoio/hugo@v0.169.0
 
 tasks:
   default:
