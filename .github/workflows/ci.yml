@@ -65,7 +65,7 @@ jobs:
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           distribution: goreleaser
-          version: v2.18.3
+          version: v2.19.0
           # A snapshot publishes nothing: ko loads the images into the runner's
           # Docker daemon instead of pushing them. Signing is skipped because it
           # needs the OIDC token only the release job is granted.
