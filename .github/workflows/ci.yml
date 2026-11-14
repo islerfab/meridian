@@ -37,7 +37,7 @@ jobs:
           install-only: true
       # The Helm that packages the chart at release time, rather than whichever
       # one the runner image happens to ship. Renovate moves both pins together.
-      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
         with:
           version: v4.3.1
       - name: vet, lint, test, build
@@ -65,7 +65,7 @@ jobs:
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           distribution: goreleaser
-          version: v2.18.3
+          version: v2.20.1
           # A snapshot publishes nothing: ko loads the images into the runner's
           # Docker daemon instead of pushing them. Signing is skipped because it
           # needs the OIDC token only the release job is granted.
