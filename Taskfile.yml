@@ -135,6 +135,15 @@ tasks:
       NEXT:
         sh: go tool svu next
     cmds:
+      # The tag goes on HEAD, so a checkout one merge behind origin would cut
+      # a release that silently lacks that merge, under a version number that
+      # can't be reused once the module proxy has seen it.
+      - |
+        remote=$(git ls-remote origin refs/heads/main | cut -f1)
+        if [ "$(git rev-parse HEAD)" != "$remote" ]; then
+          echo "HEAD is not origin's main (${remote:0:7}) — switch to main and pull first." >&2
+          exit 1
+        fi
       # .svu.yml sets always:true, so svu bumps the patch even with nothing to
       # release. Without this it would tag a second version on an identical tree.
       - |
