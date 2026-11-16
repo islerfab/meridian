@@ -97,13 +97,13 @@
     // needs looking at, and anything that only release.yml or a schedule runs
     // because it would first fail in the middle of a release. A PR merges
     // only when every update in it qualifies.
-    {
-      matchManagers: ["gomod"],
-      matchFileNames: ["go.mod"],
-      matchDepTypes: ["indirect"],
-      matchUpdateTypes: ["minor", "patch"],
-      automerge: true,
-    },
+    //
+    // The go tools stay manual too, although CI runs them. They share the
+    // binary's module graph, so a tool update also raises any runtime module
+    // the tool requires. Nothing here matches gomod's indirect dep type for a
+    // second reason: a vulnerability fix enables indirect modules that are
+    // otherwise disabled, so such a rule would merge runtime modules directly.
+
     // Go patch releases are where stdlib security fixes come from.
     {
       matchDepNames: ["go"],
