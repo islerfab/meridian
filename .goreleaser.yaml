@@ -105,7 +105,10 @@ changelog:
       order: 999
   filters:
     exclude:
-      - '^Merge pull request '
+      # Every subject git generates for a merge: pull requests, and the Update
+      # branch button when main moves. pr.yml skips the same commits with
+      # --no-merges, and no Conventional Commit can start this way.
+      - '^Merge '
       # Renovate's automerge hands the merge to GitHub, which titles the merge
       # commit after the pull request, so each update would be listed twice.
       - '^chore\(deps\):.* \(#\d+\)$'
