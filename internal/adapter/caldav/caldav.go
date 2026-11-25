@@ -153,7 +153,7 @@ func (a *Adapter) Create(ctx context.Context, shadow model.Shadow) error {
 	uid := "meridian-" + randomHex(16)
 	path := strings.TrimSuffix(a.cfg.CalendarPath, "/") + "/" + uid + ".ics"
 	cal := buildShadowCalendar(uid, shadow)
-	if _, err := a.client.PutCalendarObject(ctx, path, cal); err != nil {
+	if _, err := a.client.PutCalendarObject(ctx, path, cal, nil); err != nil {
 		return a.normalizeError("create", err)
 	}
 	return nil
@@ -167,7 +167,7 @@ func (a *Adapter) Update(ctx context.Context, shadow model.Shadow) error {
 		return fmt.Errorf("update: cannot derive UID from path %q: %w", shadow.Ref.ID, adapter.ErrNotFound)
 	}
 	cal := buildShadowCalendar(uid, shadow)
-	if _, err := a.client.PutCalendarObject(ctx, shadow.Ref.ID, cal); err != nil {
+	if _, err := a.client.PutCalendarObject(ctx, shadow.Ref.ID, cal, nil); err != nil {
 		return a.normalizeError("update", err)
 	}
 	return nil
@@ -175,7 +175,7 @@ func (a *Adapter) Update(ctx context.Context, shadow model.Shadow) error {
 
 // Delete removes the object; already-gone is success.
 func (a *Adapter) Delete(ctx context.Context, ref model.ShadowRef) error {
-	if err := a.client.RemoveAll(ctx, ref.ID); err != nil {
+	if err := a.client.RemoveAll(ctx, ref.ID, nil); err != nil {
 		norm := a.normalizeError("delete", err)
 		if errors.Is(norm, adapter.ErrNotFound) {
 			return nil
