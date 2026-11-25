@@ -94,7 +94,18 @@ tasks:
     deps: [docs:gen]
     dir: docs
     cmds:
-      - '{{.HUGO}} --gc --minify --destination /tmp/meridian-docs-check'
+      # Hugo quietly re-adds a theme requirement that has gone missing from
+      # go.mod, fetching whatever release is newest, so a lost pin never fails
+      # a build. Comparing before and after is what makes it fail.
+      - |
+        before=$(mktemp -d)
+        cp -f go.mod go.sum "$before"/
+        {{.HUGO}} --gc --minify --destination /tmp/meridian-docs-check
+        if ! cmp -s go.mod "$before/go.mod" || ! cmp -s go.sum "$before/go.sum"; then
+          diff -u "$before/go.mod" go.mod >&2
+          echo "Building the docs changed docs/go.mod or docs/go.sum: the theme was not pinned, so the build fetched its newest release. Check that version, then commit both files." >&2
+          exit 1
+        fi
 
   docs:build:
     desc: Build the publishable docs site into docs/public (what the Pages workflow runs)
