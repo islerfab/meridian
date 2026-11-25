@@ -31,7 +31,10 @@
       minimumReleaseAge: null,
     },
     // Root module only: docs/go.mod is a Hugo module with no Go code, so tidy
-    // would see the theme as unused and delete it.
+    // would see the theme as unused and delete it. That holds only while the
+    // two files never share a branch: Renovate takes a branch's
+    // postUpdateOptions from its first update and applies them to every file
+    // in it. The rule after "go toolchain" is what keeps them apart.
     {
       matchManagers: ["gomod"],
       matchFileNames: ["go.mod"],
@@ -88,6 +91,14 @@
     {
       matchDepNames: ["go", "golangci/golangci-lint"],
       groupName: "go toolchain",
+    },
+    // The docs module has no Go code, so its go directive has nothing to
+    // gain from a bump. Bumping it would also put docs/go.mod in the "go
+    // toolchain" branch beside the root module, and tidy the theme away.
+    {
+      matchFileNames: ["docs/go.mod"],
+      matchDepTypes: ["golang"],
+      enabled: false,
     },
 
     // Automerge covers only what a pull request's checks run in full. A
